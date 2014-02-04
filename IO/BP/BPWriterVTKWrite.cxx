@@ -47,31 +47,10 @@ void BPWriter::WriteVariable<vtkDataArray>(const std::string &path,
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::WriteVariable<vtkDataSetAttributes>(const std::string &path,
-  const vtkDataSetAttributes *data)
-{
-  this->IsWriting = true;
-  vtkDataSetAttributes *dataTmp = const_cast<vtkDataSetAttributes*>(data);
-
-  int numArrays = dataTmp->GetNumberOfArrays();
-  BPUtilities::Write<int>(this->ADIOSFile, path+"/NumArrays", numArrays);
-  for(int i = 0; i < numArrays; ++i)
-    {
-    std::stringstream ss;
-    ss << path << "/Array" << i;
-    this->WriteVariable<vtkDataArray>(ss.str(), dataTmp->GetArray(i));
-    }
-}
-
-//----------------------------------------------------------------------------
-template<>
 void BPWriter::WriteVariable<vtkCellData>(const std::string &path,
   const vtkCellData *data)
 {
   this->IsWriting = true;
-
-  this->WriteVariable<vtkDataSetAttributes>(path+"/vtkDataSetAttributes",
-    data);
 }
 
 //----------------------------------------------------------------------------
@@ -80,9 +59,6 @@ void BPWriter::WriteVariable<vtkPointData>(const std::string &path,
   const vtkPointData *data)
 {
   this->IsWriting = true;
-
-  this->WriteVariable<vtkDataSetAttributes>(path+"/vtkDataSetAttributes",
-    data);
 }
 
 //----------------------------------------------------------------------------
@@ -93,8 +69,8 @@ void BPWriter::WriteVariable<vtkDataSet>(const std::string &path,
   this->IsWriting = true;
   vtkDataSet *dataTmp = const_cast<vtkDataSet*>(data);
 
-  BPUtilities::Write<double>(this->ADIOSFile, path+"/Bounds",
-    dataTmp->GetBounds());
+  this->WriteVariable<vtkFieldData>(path+"/FieldData",
+    dataTmp->GetFieldData());
   this->WriteVariable<vtkCellData>(path+"/CellData",
     dataTmp->GetCellData());
   this->WriteVariable<vtkPointData>(path+"/PointData",

@@ -28,8 +28,13 @@ template<>
 void BPWriter::DefineVariable<vtkDataArray>(const std::string &path,
   const vtkDataArray *data)
 {
-  this->CanDefine();
   vtkDataArray *dataTmp = const_cast<vtkDataArray*>(data);
+
+  this->CanDefine();
+  if(!data)
+    {
+    return;
+    }
 
   this->ADIOSGroupSize += BPUtilities::Define<int>(this->ADIOSGroup,
     path+"/NumberOfComponents");
@@ -50,32 +55,16 @@ void BPWriter::DefineVariable<vtkDataArray>(const std::string &path,
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::DefineVariable<vtkDataSetAttributes>(const std::string &path,
-  const vtkDataSetAttributes *data)
-{
-  this->CanDefine();
-  vtkDataSetAttributes *dataTmp = const_cast<vtkDataSetAttributes*>(data);
-
-  int numArrays = dataTmp->GetNumberOfArrays();
-  this->ADIOSGroupSize += BPUtilities::Define<int>(this->ADIOSGroup,
-    path+"/NumArrays");
-  for(int i = 0; i < numArrays; ++i)
-    {
-    std::stringstream ss;
-    ss << path << "/Array" << i;
-    this->DefineVariable<vtkDataArray>(ss.str(), dataTmp->GetArray(i));
-    }
-}
-
-//----------------------------------------------------------------------------
-template<>
 void BPWriter::DefineVariable<vtkCellData>(const std::string &path,
   const vtkCellData *data)
 {
   this->CanDefine();
-
-  this->DefineVariable<vtkDataSetAttributes>(path+"/vtkDataSetAttributes",
-    data);
+  //this->DefineVariable<vtkDataSetAttributes>(path+"/vtkDataSetAttributes",
+  //  data);
+  if(!data)
+    {
+    return;
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -84,17 +73,12 @@ void BPWriter::DefineVariable<vtkPointData>(const std::string &path,
   const vtkPointData *data)
 {
   this->CanDefine();
-
-  this->DefineVariable<vtkDataSetAttributes>(path+"/vtkDataSetAttributes",
-    data);
-}
-
-//----------------------------------------------------------------------------
-template<>
-void BPWriter::DefineVariable<vtkInformation>(const std::string &path,
-  const vtkInformation *data)
-{
-  this->CanDefine();
+  //this->DefineVariable<vtkDataSetAttributes>(path+"/vtkDataSetAttributes",
+  //  data);
+  if(!data)
+    {
+    return;
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -102,7 +86,19 @@ template<>
 void BPWriter::DefineVariable<vtkFieldData>(const std::string &path,
   const vtkFieldData *data)
 {
+  vtkFieldData *dataTmp = const_cast<vtkFieldData*>(data);
+
   this->CanDefine();
+  if(!data)
+    {
+    return;
+    }
+
+  for(size_t i = 0; i < dataTmp->GetNumberOfArrays(); ++i)
+    {
+    vtkDataArray *array = dataTmp->GetArray(i);
+    this->DefineVariable<vtkDataArray>(path+"/"+array->GetName(), array);
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -110,11 +106,16 @@ template<>
 void BPWriter::DefineVariable<vtkDataSet>(const std::string &path,
   const vtkDataSet *data)
 {
-  this->CanDefine();
   vtkDataSet *dataTmp = const_cast<vtkDataSet*>(data);
 
-  this->ADIOSGroupSize += BPUtilities::Define<double>(this->ADIOSGroup,
-    path+"/Bounds", 6);
+  this->CanDefine();
+  if(!data)
+    {
+    return;
+    }
+
+  this->DefineVariable<vtkFieldData>(path+"/FieldData",
+    dataTmp->GetFieldData());
   this->DefineVariable<vtkCellData>(path+"/CellData",
     dataTmp->GetCellData());
   this->DefineVariable<vtkPointData>(path+"/PointData",
@@ -128,6 +129,10 @@ void BPWriter::DefineVariable<vtkImageData>(const std::string &path,
 {
   this->CanDefine();
   this->DefineVariable<vtkDataSet>(path+"/vtkDataSet", data);
+  if(!data)
+    {
+    return;
+    }
 
   this->ADIOSGroupSize += BPUtilities::Define<double>(this->ADIOSGroup,
     path+"/Origin", 3);

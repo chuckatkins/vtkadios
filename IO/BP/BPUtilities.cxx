@@ -45,6 +45,18 @@ size_t BPUtilities::TypeSize(ADIOS_DATATYPES t)
     }
 }
 
+// Specialization for std::string
+template<>
+size_t BPUtilities::Define<std::string>(int64_t group, const std::string &path,
+  const std::string &data)
+{
+  std::cout << "Def: " << path << " " << data.size() << std::endl;
+  int id = adios_define_var(group, path.c_str(), "", adios_string,
+    NULL, NULL, NULL);
+  TestError0(id, "Failed to define "+path);
+  return data.size();
+}
+
 // Specialization for std::string; automatically convert to char*
 template<>
 void BPUtilities::Write<std::string>(int64_t file, const std::string &path,
