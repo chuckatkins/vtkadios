@@ -5,14 +5,14 @@
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
 #include <vtkXMLImageDataReader.h>
-#include <vtkImageWriter.h>
+#include <vtkStructuredPointsWriter.h>
 #include <vtkTIFFWriter.h>
 
 #include "IO/BP/vtkBPImageDataWriter.h"
 
 vtkSmartPointer<vtkImageData> loadImage(const std::string &filename);
 
-void saveTIFFImage(
+void saveLegacyImage(
   const vtkSmartPointer<vtkImageData> image,
   const std::string &filename);
 
@@ -40,8 +40,12 @@ int main(int argc, char **argv)
 
     image->PrintSelf(std::cout, vtkIndent(4));
 
+    std::cout << "Saving Legacy image data..." << std::flush;
+    saveLegacyImage(image, outputFile+".vtk");
+    std::cout << "done" << std::endl;
+
     std::cout << "Saving BP image data..." << std::flush;
-    saveBPImage(image, outputFile);
+    saveBPImage(image, outputFile+".bp");
     std::cout << "done" << std::endl;
   }
 
@@ -58,12 +62,12 @@ vtkSmartPointer<vtkImageData> loadImage(const std::string &filename)
   return reader->GetOutput();
 }
 
-void saveTIFFImage(
+void saveLegacyImage(
   const vtkSmartPointer<vtkImageData> image,
   const std::string &filename)
 {
-  vtkSmartPointer<vtkTIFFWriter> writer =
-    vtkSmartPointer<vtkTIFFWriter>::New();
+  vtkSmartPointer<vtkStructuredPointsWriter> writer =
+    vtkSmartPointer<vtkStructuredPointsWriter>::New();
   writer->SetInputData(image);
   writer->SetFileName(filename.c_str());
   writer->Write();
