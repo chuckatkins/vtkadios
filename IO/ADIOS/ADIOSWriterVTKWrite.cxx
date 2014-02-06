@@ -36,8 +36,6 @@ void ADIOSWriter::WriteVariable<vtkAbstractArray>(const std::string &path,
     return;
     }
 
-  //ADIOSUtilities::Write<std::string>(this->ADIOSGroup, path+"/Name",
-  //  dataTmp->GetName());
   ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/NumberOfComponents",
     dataTmp->GetNumberOfComponents());
   ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/NumberOfTuples",
@@ -123,10 +121,21 @@ void ADIOSWriter::WriteVariable<vtkImageData>(const std::string &path,
     return;
     }
 
-  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/Origin",
-    dataTmp->GetOrigin());
-  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/Spacing",
-    dataTmp->GetSpacing());
-  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/Extent",
-    dataTmp->GetExtent());
+  double *origin = dataTmp->GetOrigin();
+  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/OriginX", origin[0]);
+  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/OriginY", origin[1]);
+  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/OriginZ", origin[2]);
+
+  double *spacing = dataTmp->GetSpacing();
+  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/SpacingX", spacing[0]);
+  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/SpacingY", spacing[1]);
+  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/SpacingZ", spacing[2]);
+
+  int *extent = dataTmp->GetExtent();
+  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/ExtentXMin", extent[0]);
+  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/ExtentXMax", extent[1]);
+  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/ExtentYMin", extent[2]);
+  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/ExtentYMax", extent[3]);
+  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/ExtentZMin", extent[4]);
+  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/ExtentZMax", extent[5]);
 }

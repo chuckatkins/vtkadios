@@ -37,8 +37,6 @@ void ADIOSWriter::DefineVariable<vtkAbstractArray>(const std::string &path,
     return;
     }
 
-  //this->ADIOSGroupSize += ADIOSUtilities::Define<std::string>(this->ADIOSGroup,
-  //  path+"/Name", dataTmp->GetName());
   this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
     path+"/NumberOfComponents");
   this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
@@ -128,9 +126,27 @@ void ADIOSWriter::DefineVariable<vtkImageData>(const std::string &path,
     }
 
   this->ADIOSGroupSize += ADIOSUtilities::Define<double>(this->ADIOSGroup,
-    path+"/Origin", 3);
+    path+"/OriginX");
   this->ADIOSGroupSize += ADIOSUtilities::Define<double>(this->ADIOSGroup,
-    path+"/Spacing", 3);
+    path+"/OriginY");
+  this->ADIOSGroupSize += ADIOSUtilities::Define<double>(this->ADIOSGroup,
+    path+"/OriginZ");
+  this->ADIOSGroupSize += ADIOSUtilities::Define<double>(this->ADIOSGroup,
+    path+"/SpacingX");
+  this->ADIOSGroupSize += ADIOSUtilities::Define<double>(this->ADIOSGroup,
+    path+"/SpacingY");
+  this->ADIOSGroupSize += ADIOSUtilities::Define<double>(this->ADIOSGroup,
+    path+"/SpacingZ");
   this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
-    path+"/Extent", 6);
+    path+"/ExtentXMin");
+  this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
+    path+"/ExtentXMax");
+  this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
+    path+"/ExtentYMin");
+  this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
+    path+"/ExtentYMax");
+  this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
+    path+"/ExtentZMin");
+  this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
+    path+"/ExtentZMax");
 }
