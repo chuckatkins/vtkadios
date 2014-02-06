@@ -25,40 +25,67 @@
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::WriteVariable<vtkDataArray>(const std::string &path,
-  const vtkDataArray *data)
+void BPWriter::WriteVariable<vtkAbstractArray>(const std::string &path,
+  const vtkAbstractArray *data)
 {
-  this->IsWriting = true;
-  vtkDataArray *dataTmp = const_cast<vtkDataArray*>(data);
+  vtkAbstractArray *dataTmp = const_cast<vtkAbstractArray*>(data);
 
+  this->IsWriting = true;
+  if(!data)
+    {
+    return;
+    }
+
+  //BPUtilities::Write<std::string>(this->ADIOSGroup, path+"/Name",
+  //  dataTmp->GetName());
   BPUtilities::Write<int>(this->ADIOSFile, path+"/NumberOfComponents",
     dataTmp->GetNumberOfComponents());
   BPUtilities::Write<int>(this->ADIOSFile, path+"/NumberOfTuples",
     dataTmp->GetNumberOfTuples());
   BPUtilities::Write<void>(this->ADIOSFile, path+"/Values",
     dataTmp->GetVoidPointer(0));
+}
+
+//----------------------------------------------------------------------------
+template<>
+void BPWriter::WriteVariable<vtkDataArray>(const std::string &path,
+  const vtkDataArray *data)
+{
+  vtkDataArray *dataTmp = const_cast<vtkDataArray*>(data);
+
+  this->IsWriting = true;
+  if(!data)
+    {
+    return;
+    }
+
+  this->WriteVariable<vtkAbstractArray>(path+"/vtkAbstractArray", data);
 
   vtkLookupTable *lut = dataTmp->GetLookupTable();
   if(lut)
     {
-    this->WriteVariable<vtkDataArray>(path+"/LookupTable", lut->GetTable());
+    this->WriteVariable<vtkAbstractArray>(path+"/LookupTable", lut->GetTable());
     }
 }
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::WriteVariable<vtkCellData>(const std::string &path,
-  const vtkCellData *data)
+void BPWriter::WriteVariable<vtkFieldData>(const std::string &path,
+  const vtkFieldData *data)
 {
-  this->IsWriting = true;
-}
+  vtkFieldData *dataTmp = const_cast<vtkFieldData*>(data);
 
-//----------------------------------------------------------------------------
-template<>
-void BPWriter::WriteVariable<vtkPointData>(const std::string &path,
-  const vtkPointData *data)
-{
   this->IsWriting = true;
+  if(!data)
+    {
+    return;
+    }
+  
+  for(size_t i = 0; i < dataTmp->GetNumberOfArrays(); ++i)
+    {
+    vtkDataArray *array = dataTmp->GetArray(i);
+    this->WriteVariable<vtkDataArray>(path+"/"+array->GetName(), array);
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -66,14 +93,19 @@ template<>
 void BPWriter::WriteVariable<vtkDataSet>(const std::string &path,
   const vtkDataSet *data)
 {
-  this->IsWriting = true;
   vtkDataSet *dataTmp = const_cast<vtkDataSet*>(data);
+
+  this->IsWriting = true;
+  if(!data)
+    {
+    return;
+    }
 
   this->WriteVariable<vtkFieldData>(path+"/FieldData",
     dataTmp->GetFieldData());
-  this->WriteVariable<vtkCellData>(path+"/CellData",
+  this->WriteVariable<vtkFieldData>(path+"/CellData",
     dataTmp->GetCellData());
-  this->WriteVariable<vtkPointData>(path+"/PointData",
+  this->WriteVariable<vtkFieldData>(path+"/PointData",
     dataTmp->GetPointData());
 }
 
@@ -82,9 +114,14 @@ template<>
 void BPWriter::WriteVariable<vtkImageData>(const std::string &path,
   const vtkImageData *data)
 {
+  vtkImageData *dataTmp = const_cast<vtkImageData*>(data);
+
   this->IsWriting = true;
   this->WriteVariable<vtkDataSet>(path+"/vtkDataSet", data);
-  vtkImageData *dataTmp = const_cast<vtkImageData*>(data);
+  if(!data)
+    {
+    return;
+    }
 
   BPUtilities::Write<double>(this->ADIOSFile, path+"/Origin",
     dataTmp->GetOrigin());

@@ -44,9 +44,10 @@ public:
 
   template<typename U>
   static inline size_t Define(int64_t group, const std::string &path,
-    size_t len = 0)
+    size_t len = 1)
   {
-    return Define(group, path, len == 0 ? "" : ToString(len), BPType<U>::T);
+    Define(group, path, len == 1 ? "" : ToString(len), BPType<U>::T);
+    return len * sizeof(U);
   }
 
   template<typename U>

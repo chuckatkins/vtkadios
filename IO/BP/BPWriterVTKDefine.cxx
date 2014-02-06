@@ -20,8 +20,37 @@
 #include <vtkPointData.h>
 #include <vtkDataArray.h>
 #include <vtkLookupTable.h>
+#include <vtkFieldData.h>
 
 #include <sstream>
+
+//----------------------------------------------------------------------------
+template<>
+void BPWriter::DefineVariable<vtkAbstractArray>(const std::string &path,
+  const vtkAbstractArray *data)
+{
+  vtkAbstractArray *dataTmp = const_cast<vtkAbstractArray*>(data);
+
+  this->CanDefine();
+  if(!data || dataTmp->GetNumberOfTuples() == 0)
+    {
+    return;
+    }
+
+  //this->ADIOSGroupSize += BPUtilities::Define<std::string>(this->ADIOSGroup,
+  //  path+"/Name", dataTmp->GetName());
+  this->ADIOSGroupSize += BPUtilities::Define<int>(this->ADIOSGroup,
+    path+"/NumberOfComponents");
+  this->ADIOSGroupSize += BPUtilities::Define<int>(this->ADIOSGroup,
+    path+"/NumberOfTuples");
+
+  this->ADIOSGroupSize += dataTmp->GetDataTypeSize() *
+                          dataTmp->GetNumberOfComponents() *
+                          dataTmp->GetNumberOfTuples();
+  BPUtilities::Define(this->ADIOSGroup,
+    path+"/Values", (path+"/NumberOfComponents")+","+(path+"/NumberOfTuples"),
+    vtkBPUtilities::VTKToADIOSType(dataTmp->GetDataType()));
+}
 
 //----------------------------------------------------------------------------
 template<>
@@ -31,53 +60,17 @@ void BPWriter::DefineVariable<vtkDataArray>(const std::string &path,
   vtkDataArray *dataTmp = const_cast<vtkDataArray*>(data);
 
   this->CanDefine();
-  if(!data)
+  if(!data || dataTmp->GetNumberOfTuples() == 0)
     {
     return;
     }
 
-  this->ADIOSGroupSize += BPUtilities::Define<int>(this->ADIOSGroup,
-    path+"/NumberOfComponents");
-  this->ADIOSGroupSize += BPUtilities::Define<int>(this->ADIOSGroup,
-    path+"/NumberOfTuples");
-
-  this->ADIOSGroupSize += dataTmp->GetDataSize() * dataTmp->GetNumberOfComponents() * dataTmp->GetNumberOfTuples();
-  BPUtilities::Define(this->ADIOSGroup,
-    path+"/Values", (path+"/NumberOfComponents")+","+(path+"/NumberOfTuples"),
-    vtkBPUtilities::VTKToADIOSType(dataTmp->GetDataType()));
+  this->DefineVariable<vtkAbstractArray>(path+"/vtkAbstractArray", data);
 
   vtkLookupTable *lut = dataTmp->GetLookupTable();
   if(lut)
     {
-    this->DefineVariable<vtkDataArray>(path+"/LookupTable", lut->GetTable());
-    }
-}
-
-//----------------------------------------------------------------------------
-template<>
-void BPWriter::DefineVariable<vtkCellData>(const std::string &path,
-  const vtkCellData *data)
-{
-  this->CanDefine();
-  //this->DefineVariable<vtkDataSetAttributes>(path+"/vtkDataSetAttributes",
-  //  data);
-  if(!data)
-    {
-    return;
-    }
-}
-
-//----------------------------------------------------------------------------
-template<>
-void BPWriter::DefineVariable<vtkPointData>(const std::string &path,
-  const vtkPointData *data)
-{
-  this->CanDefine();
-  //this->DefineVariable<vtkDataSetAttributes>(path+"/vtkDataSetAttributes",
-  //  data);
-  if(!data)
-    {
-    return;
+    this->DefineVariable<vtkAbstractArray>(path+"/LookupTable", lut->GetTable());
     }
 }
 
@@ -116,9 +109,9 @@ void BPWriter::DefineVariable<vtkDataSet>(const std::string &path,
 
   this->DefineVariable<vtkFieldData>(path+"/FieldData",
     dataTmp->GetFieldData());
-  this->DefineVariable<vtkCellData>(path+"/CellData",
+  this->DefineVariable<vtkFieldData>(path+"/CellData",
     dataTmp->GetCellData());
-  this->DefineVariable<vtkPointData>(path+"/PointData",
+  this->DefineVariable<vtkFieldData>(path+"/PointData",
     dataTmp->GetPointData());
 }
 
