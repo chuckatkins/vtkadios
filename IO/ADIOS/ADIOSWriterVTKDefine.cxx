@@ -15,14 +15,27 @@
 #include "ADIOSWriter.h"
 #include "ADIOSUtilities.h"
 #include "ADIOSUtilitiesVTK.h"
+#include <vtkPolyData.h>
 #include <vtkImageData.h>
 #include <vtkCellData.h>
 #include <vtkPointData.h>
 #include <vtkDataArray.h>
 #include <vtkLookupTable.h>
 #include <vtkFieldData.h>
+#include <vtkCellArray.h>
+#include <vtkPoints.h>
 
-#include <sstream>
+// A common pattern when the only thing being written is an array retrieved
+//by a member function
+#define ADIOSDefineMemberArray(path, data, getFun) \
+  if((data)) \
+    { \
+    vtkAbstractArray *tmp = (data)->getFun(); \
+    if(tmp) \
+      { \
+      this->DefineVariable<vtkAbstractArray>(path, tmp); \
+      } \
+    }
 
 //----------------------------------------------------------------------------
 template<>
@@ -58,7 +71,7 @@ void ADIOSWriter::DefineVariable<vtkDataArray>(const std::string &path,
   vtkDataArray *dataTmp = const_cast<vtkDataArray*>(data);
 
   this->CanDefine();
-  if(!data || dataTmp->GetNumberOfTuples() == 0)
+  if(!data)
     {
     return;
     }
@@ -150,3 +163,27 @@ void ADIOSWriter::DefineVariable<vtkImageData>(const std::string &path,
   this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
     path+"/ExtentZMax");
 }
+
+
+//----------------------------------------------------------------------------
+template<>
+void ADIOSWriter::DefineVariable<vtkPolyData>(const std::string &path,
+  const vtkPolyData *data)
+{
+  vtkPolyData *dataTmp = const_cast<vtkPolyData*>(data);
+
+  this->CanDefine();
+  this->DefineVariable<vtkDataSet>(path+"/vtkDataSet", data);
+  if(!data)
+    {
+    return;
+    }
+
+  ADIOSDefineMemberArray(path+"/Points", dataTmp->GetPoints(), GetData);
+  ADIOSDefineMemberArray(path+"/Vertices", dataTmp->GetVerts(), GetData);
+  ADIOSDefineMemberArray(path+"/Lines", dataTmp->GetLines(), GetData);
+  ADIOSDefineMemberArray(path+"/Polygons", dataTmp->GetPolys(), GetData);
+  ADIOSDefineMemberArray(path+"/Strips", dataTmp->GetStrips(), GetData);
+}
+
+#undef ADIOSDefineMemberArray

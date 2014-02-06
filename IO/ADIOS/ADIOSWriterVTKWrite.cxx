@@ -15,13 +15,27 @@
 #include "ADIOSWriter.h"
 #include "ADIOSWriter.txx"
 #include "ADIOSUtilities.h"
+#include <vtkPolyData.h>
 #include <vtkImageData.h>
 #include <vtkCellData.h>
 #include <vtkPointData.h>
 #include <vtkDataArray.h>
 #include <vtkLookupTable.h>
+#include <vtkFieldData.h>
+#include <vtkCellArray.h>
+#include <vtkPoints.h>
 
-#include <sstream>
+// A common pattern when the only thing being written is an array retrieved
+// by a member function
+#define ADIOSWriteMemberArray(path, data, getFun) \
+  if((data)) \
+    { \
+    vtkAbstractArray *tmp = (data)->getFun(); \
+    if(tmp) \
+      { \
+      this->WriteVariable<vtkAbstractArray>(path, tmp); \
+      } \
+    }
 
 //----------------------------------------------------------------------------
 template<>
@@ -64,6 +78,22 @@ void ADIOSWriter::WriteVariable<vtkDataArray>(const std::string &path,
     {
     this->WriteVariable<vtkAbstractArray>(path+"/LookupTable", lut->GetTable());
     }
+}
+
+//----------------------------------------------------------------------------
+template<>
+void ADIOSWriter::WriteVariable<vtkCellArray>(const std::string &path,
+  const vtkCellArray *data)
+{
+  vtkCellArray *dataTmp = const_cast<vtkCellArray*>(data);
+
+  this->IsWriting = true;
+  if(!data)
+    {
+    return;
+    }
+
+  this->WriteVariable<vtkAbstractArray>(path+"/Ia", dataTmp->GetData());
 }
 
 //----------------------------------------------------------------------------
@@ -138,4 +168,25 @@ void ADIOSWriter::WriteVariable<vtkImageData>(const std::string &path,
   ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/ExtentYMax", extent[3]);
   ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/ExtentZMin", extent[4]);
   ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/ExtentZMax", extent[5]);
+}
+
+//----------------------------------------------------------------------------
+template<>
+void ADIOSWriter::WriteVariable<vtkPolyData>(const std::string &path,
+  const vtkPolyData *data)
+{
+  vtkPolyData *dataTmp = const_cast<vtkPolyData*>(data);
+
+  this->IsWriting = true;
+  this->WriteVariable<vtkDataSet>(path+"/vtkDataSet", data);
+  if(!data)
+    {
+    return;
+    }
+
+  ADIOSWriteMemberArray(path+"/Points", dataTmp->GetPoints(), GetData);
+  ADIOSWriteMemberArray(path+"/Vertices", dataTmp->GetVerts(), GetData);
+  ADIOSWriteMemberArray(path+"/Lines", dataTmp->GetLines(), GetData);
+  ADIOSWriteMemberArray(path+"/Polygons", dataTmp->GetPolys(), GetData);
+  ADIOSWriteMemberArray(path+"/Strips", dataTmp->GetStrips(), GetData);
 }
