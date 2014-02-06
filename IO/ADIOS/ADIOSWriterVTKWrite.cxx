@@ -37,15 +37,23 @@
       } \
     }
 
+// A common null test used at the begining of every function
+#define ADIOSWriteNullTest(data) \
+  this->IsWriting = true; \
+  if(!data) \
+    { \
+    return; \
+    }
+
+
 //----------------------------------------------------------------------------
 template<>
 void ADIOSWriter::WriteVariable<vtkAbstractArray>(const std::string &path,
   const vtkAbstractArray *data)
 {
+  ADIOSWriteNullTest(data)
   vtkAbstractArray *dataTmp = const_cast<vtkAbstractArray*>(data);
-
-  this->IsWriting = true;
-  if(!data)
+  if(dataTmp->GetNumberOfTuples() == 0)
     {
     return;
     }
@@ -63,14 +71,8 @@ template<>
 void ADIOSWriter::WriteVariable<vtkDataArray>(const std::string &path,
   const vtkDataArray *data)
 {
+  ADIOSWriteNullTest(data)
   vtkDataArray *dataTmp = const_cast<vtkDataArray*>(data);
-
-  this->IsWriting = true;
-  if(!data)
-    {
-    return;
-    }
-
   this->WriteVariable<vtkAbstractArray>(path+"/vtkAbstractArray", data);
 
   vtkLookupTable *lut = dataTmp->GetLookupTable();
@@ -82,32 +84,11 @@ void ADIOSWriter::WriteVariable<vtkDataArray>(const std::string &path,
 
 //----------------------------------------------------------------------------
 template<>
-void ADIOSWriter::WriteVariable<vtkCellArray>(const std::string &path,
-  const vtkCellArray *data)
-{
-  vtkCellArray *dataTmp = const_cast<vtkCellArray*>(data);
-
-  this->IsWriting = true;
-  if(!data)
-    {
-    return;
-    }
-
-  this->WriteVariable<vtkAbstractArray>(path+"/Ia", dataTmp->GetData());
-}
-
-//----------------------------------------------------------------------------
-template<>
 void ADIOSWriter::WriteVariable<vtkFieldData>(const std::string &path,
   const vtkFieldData *data)
 {
+  ADIOSWriteNullTest(data)
   vtkFieldData *dataTmp = const_cast<vtkFieldData*>(data);
-
-  this->IsWriting = true;
-  if(!data)
-    {
-    return;
-    }
   
   for(size_t i = 0; i < dataTmp->GetNumberOfArrays(); ++i)
     {
@@ -121,13 +102,8 @@ template<>
 void ADIOSWriter::WriteVariable<vtkDataSet>(const std::string &path,
   const vtkDataSet *data)
 {
+  ADIOSWriteNullTest(data)
   vtkDataSet *dataTmp = const_cast<vtkDataSet*>(data);
-
-  this->IsWriting = true;
-  if(!data)
-    {
-    return;
-    }
 
   this->WriteVariable<vtkFieldData>(path+"/FieldData",
     dataTmp->GetFieldData());
@@ -142,14 +118,9 @@ template<>
 void ADIOSWriter::WriteVariable<vtkImageData>(const std::string &path,
   const vtkImageData *data)
 {
+  ADIOSWriteNullTest(data)
   vtkImageData *dataTmp = const_cast<vtkImageData*>(data);
-
-  this->IsWriting = true;
   this->WriteVariable<vtkDataSet>(path+"/vtkDataSet", data);
-  if(!data)
-    {
-    return;
-    }
 
   double *origin = dataTmp->GetOrigin();
   ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/OriginX", origin[0]);
@@ -175,14 +146,9 @@ template<>
 void ADIOSWriter::WriteVariable<vtkPolyData>(const std::string &path,
   const vtkPolyData *data)
 {
+  ADIOSWriteNullTest(data)
   vtkPolyData *dataTmp = const_cast<vtkPolyData*>(data);
-
-  this->IsWriting = true;
   this->WriteVariable<vtkDataSet>(path+"/vtkDataSet", data);
-  if(!data)
-    {
-    return;
-    }
 
   ADIOSWriteMemberArray(path+"/Points", dataTmp->GetPoints(), GetData);
   ADIOSWriteMemberArray(path+"/Vertices", dataTmp->GetVerts(), GetData);

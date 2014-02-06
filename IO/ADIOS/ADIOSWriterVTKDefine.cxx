@@ -26,7 +26,7 @@
 #include <vtkPoints.h>
 
 // A common pattern when the only thing being written is an array retrieved
-//by a member function
+// by a member function
 #define ADIOSDefineMemberArray(path, data, getFun) \
   if((data)) \
     { \
@@ -37,15 +37,22 @@
       } \
     }
 
+// A common null test used at the begining of every function
+#define ADIOSDefineNullTest(data) \
+  this->CanDefine(); \
+  if(!data) \
+    { \
+    return; \
+    }
+
 //----------------------------------------------------------------------------
 template<>
 void ADIOSWriter::DefineVariable<vtkAbstractArray>(const std::string &path,
   const vtkAbstractArray *data)
 {
+  ADIOSDefineNullTest(data);
   vtkAbstractArray *dataTmp = const_cast<vtkAbstractArray*>(data);
-
-  this->CanDefine();
-  if(!data || dataTmp->GetNumberOfTuples() == 0)
+  if(dataTmp->GetNumberOfTuples() == 0)
     {
     return;
     }
@@ -68,14 +75,8 @@ template<>
 void ADIOSWriter::DefineVariable<vtkDataArray>(const std::string &path,
   const vtkDataArray *data)
 {
+  ADIOSDefineNullTest(data);
   vtkDataArray *dataTmp = const_cast<vtkDataArray*>(data);
-
-  this->CanDefine();
-  if(!data)
-    {
-    return;
-    }
-
   this->DefineVariable<vtkAbstractArray>(path+"/vtkAbstractArray", data);
 
   vtkLookupTable *lut = dataTmp->GetLookupTable();
@@ -90,13 +91,8 @@ template<>
 void ADIOSWriter::DefineVariable<vtkFieldData>(const std::string &path,
   const vtkFieldData *data)
 {
+  ADIOSDefineNullTest(data);
   vtkFieldData *dataTmp = const_cast<vtkFieldData*>(data);
-
-  this->CanDefine();
-  if(!data)
-    {
-    return;
-    }
 
   for(size_t i = 0; i < dataTmp->GetNumberOfArrays(); ++i)
     {
@@ -110,13 +106,8 @@ template<>
 void ADIOSWriter::DefineVariable<vtkDataSet>(const std::string &path,
   const vtkDataSet *data)
 {
+  ADIOSDefineNullTest(data);
   vtkDataSet *dataTmp = const_cast<vtkDataSet*>(data);
-
-  this->CanDefine();
-  if(!data)
-    {
-    return;
-    }
 
   this->DefineVariable<vtkFieldData>(path+"/FieldData",
     dataTmp->GetFieldData());
@@ -131,12 +122,8 @@ template<>
 void ADIOSWriter::DefineVariable<vtkImageData>(const std::string &path,
   const vtkImageData *data)
 {
-  this->CanDefine();
+  ADIOSDefineNullTest(data);
   this->DefineVariable<vtkDataSet>(path+"/vtkDataSet", data);
-  if(!data)
-    {
-    return;
-    }
 
   this->ADIOSGroupSize += ADIOSUtilities::Define<double>(this->ADIOSGroup,
     path+"/OriginX");
@@ -170,14 +157,9 @@ template<>
 void ADIOSWriter::DefineVariable<vtkPolyData>(const std::string &path,
   const vtkPolyData *data)
 {
+  ADIOSDefineNullTest(data);
   vtkPolyData *dataTmp = const_cast<vtkPolyData*>(data);
-
-  this->CanDefine();
   this->DefineVariable<vtkDataSet>(path+"/vtkDataSet", data);
-  if(!data)
-    {
-    return;
-    }
 
   ADIOSDefineMemberArray(path+"/Points", dataTmp->GetPoints(), GetData);
   ADIOSDefineMemberArray(path+"/Vertices", dataTmp->GetVerts(), GetData);
