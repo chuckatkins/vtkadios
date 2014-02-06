@@ -1,5 +1,5 @@
-#ifndef __BPUtilities_h
-#define __BPUtilities_h
+#ifndef __ADIOSUtilities_h
+#define __ADIOSUtilities_h
 
 #include <stdint.h>
 
@@ -11,7 +11,7 @@
 
 #include <iostream>
 
-class BPUtilities
+class ADIOSUtilities
 {
 private:
   static inline std::string ToString(size_t s)
@@ -27,7 +27,7 @@ public:
   // Map C and C++ primitive datatypes into ADIOS datatypes
   // Specialization defined after class definition
   template<typename U>
-  struct BPType
+  struct ADIOSType
   {
     static ADIOS_DATATYPES T;
   };
@@ -46,7 +46,7 @@ public:
   static inline size_t Define(int64_t group, const std::string &path,
     size_t len = 1)
   {
-    Define(group, path, len == 1 ? "" : ToString(len), BPType<U>::T);
+    Define(group, path, len == 1 ? "" : ToString(len), ADIOSType<U>::T);
     return len * sizeof(U);
   }
 
@@ -54,7 +54,7 @@ public:
   static inline size_t Define(int64_t group, const std::string &path,
     const std::string &len)
   {
-    return Define(group, path, len, BPType<U>::T);
+    return Define(group, path, len, ADIOSType<U>::T);
   }
 
   static inline size_t Define(int64_t group, const std::string &path,

@@ -8,7 +8,7 @@
 #include <vtkStructuredPointsWriter.h>
 #include <vtkTIFFWriter.h>
 
-#include "IO/BP/vtkBPImageDataWriter.h"
+#include "IO/ADIOS/vtkADIOSImageDataWriter.h"
 
 vtkSmartPointer<vtkImageData> loadImage(const std::string &filename);
 
@@ -16,7 +16,7 @@ void saveLegacyImage(
   const vtkSmartPointer<vtkImageData> image,
   const std::string &filename);
 
-void saveBPImage(
+void saveADIOSImage(
   const vtkSmartPointer<vtkImageData> image,
   const std::string &filename);
 
@@ -44,8 +44,8 @@ int main(int argc, char **argv)
     saveLegacyImage(image, outputFile+".vtk");
     std::cout << "done" << std::endl;
 
-    std::cout << "Saving BP image data..." << std::flush;
-    saveBPImage(image, outputFile+".bp");
+    std::cout << "Saving ADIOS image data..." << std::endl;
+    saveADIOSImage(image, outputFile+".bp");
     std::cout << "done" << std::endl;
   }
 
@@ -73,12 +73,12 @@ void saveLegacyImage(
   writer->Write();
 }
 
-void saveBPImage(
+void saveADIOSImage(
   const vtkSmartPointer<vtkImageData> image,
   const std::string &filename)
 {
-  vtkSmartPointer<vtkBPImageDataWriter> writer =
-    vtkSmartPointer<vtkBPImageDataWriter>::New();
+  vtkSmartPointer<vtkADIOSImageDataWriter> writer =
+    vtkSmartPointer<vtkADIOSImageDataWriter>::New();
 
   writer->SetFileName(filename);
   writer->SetInput(image);

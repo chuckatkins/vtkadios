@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    BPWriter.h
+  Module:    ADIOSWriter.h
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,10 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME BPWriter - The utility class performing all ADIOS operations
+// .NAME ADIOSWriter - The utility class performing all ADIOS operations
 
-#ifndef _BPWriter_h
-#define _BPWriter_h
+#ifndef _ADIOSWriter_h
+#define _ADIOSWriter_h
 
 #include <stdint.h>
 #include <cstdarg>
@@ -24,11 +24,11 @@
 #include <utility>
 #include <map>
 
-class BPWriter
+class ADIOSWriter
 {
 public:
-  BPWriter(void);
-  virtual ~BPWriter(void);
+  ADIOSWriter(void);
+  virtual ~ADIOSWriter(void);
 
   // Description:
   // Declare the underlying variables within the associated Object

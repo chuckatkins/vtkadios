@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkBPImageDataWriter.h
+  Module:    vtkADIOSImageDataWriter.h
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,28 +12,27 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkBPImageDataWriter - Write ADIOS BP ImageData files.
+// .NAME vtkADIOSImageDataWriter - Write ImageData objects using ADIOS
 // .SECTION Description
-// vtkBPImageDataWriter writes the ADIOS BP file format.
-// The standard extension for this writer's file format is "bp".
+// vtkADIOSImageDataWriter writes a vtkImageData object using the ADIOS
+// IO framework.  The standard extension for this writer's file format is "bp".
 
 // .SECTION See Also
-// vtkBPPImageDataWriter
+// vtkADIOSImageDataWriter
 
-#ifndef __vtkBPImageDataWriter_h
-#define __vtkBPImageDataWriter_h
+#ifndef __vtkADIOSImageDataWriter_h
+#define __vtkADIOSImageDataWriter_h
 
-#include "vtkIOBPModule.h" // For export macro
-#include "vtkBPDataSetWriter.h"
-#include "BPWriter.h"
+#include "vtkIOADIOSModule.h" // For export macro
+#include "vtkADIOSWriter.h"
 
 class vtkImageData;
 
-class VTKIOBP_EXPORT vtkBPImageDataWriter : public vtkBPDataSetWriter
+class VTKIOADIOS_EXPORT vtkADIOSImageDataWriter : public vtkADIOSWriter
 {
 public:
-  static vtkBPImageDataWriter* New();
-  vtkTypeMacro(vtkBPImageDataWriter,vtkBPDataSetWriter);
+  static vtkADIOSImageDataWriter* New();
+  vtkTypeMacro(vtkADIOSImageDataWriter,vtkADIOSWriter);
   virtual void PrintSelf(std::ostream& os, vtkIndent indent);
 
   //BTX
@@ -48,12 +47,12 @@ public:
   virtual void Write();
 
 protected:
-  vtkBPImageDataWriter();
-  ~vtkBPImageDataWriter();
+  vtkADIOSImageDataWriter();
+  ~vtkADIOSImageDataWriter();
 
 private:
-  vtkBPImageDataWriter(const vtkBPImageDataWriter&);  // Not implemented.
-  void operator=(const vtkBPImageDataWriter&);  // Not implemented.
+  vtkADIOSImageDataWriter(const vtkADIOSImageDataWriter&);  // Not implemented.
+  void operator=(const vtkADIOSImageDataWriter&);  // Not implemented.
 };
 
 #endif

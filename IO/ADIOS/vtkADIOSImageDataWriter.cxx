@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkBPImageDataWriter->cxx
+  Module:    vtkADIOSImageDataWriter->cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,44 +12,44 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkBPImageDataWriter.h"
+#include "vtkADIOSImageDataWriter.h"
 #include <vtkImageData.h>
 #include <vtkObjectFactory.h>
 
 
-vtkStandardNewMacro(vtkBPImageDataWriter);
+vtkStandardNewMacro(vtkADIOSImageDataWriter);
 
 //----------------------------------------------------------------------------
-vtkBPImageDataWriter::vtkBPImageDataWriter()
-: vtkBPDataSetWriter()
+vtkADIOSImageDataWriter::vtkADIOSImageDataWriter()
+: vtkADIOSWriter()
 {
 }
 
 //----------------------------------------------------------------------------
-vtkBPImageDataWriter::~vtkBPImageDataWriter()
+vtkADIOSImageDataWriter::~vtkADIOSImageDataWriter()
 {
 }
 
 //----------------------------------------------------------------------------
-void vtkBPImageDataWriter::PrintSelf(std::ostream& os, vtkIndent indent)
+void vtkADIOSImageDataWriter::PrintSelf(std::ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
 }
 
 //----------------------------------------------------------------------------
-vtkImageData* vtkBPImageDataWriter::GetInput() const
+vtkImageData* vtkADIOSImageDataWriter::GetInput() const
 {
   return static_cast<vtkImageData*>(this->Superclass::GetInput());
 }
 
 //----------------------------------------------------------------------------
-void vtkBPImageDataWriter::SetInput(vtkImageData* input)
+void vtkADIOSImageDataWriter::SetInput(vtkImageData* input)
 {
   this->Input = input;
 }
 
 //----------------------------------------------------------------------------
-void vtkBPImageDataWriter::Write()
+void vtkADIOSImageDataWriter::Write()
 {
   vtkImageData *input = this->GetInput();
   this->Writer.DefineVariable<vtkImageData>("vtkImageData", input);

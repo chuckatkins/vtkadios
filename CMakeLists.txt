@@ -19,4 +19,4 @@ include(${VTK_USE_FILE})
 add_subdirectory(IO)
 
 add_executable(convert convert.cxx)
-target_link_libraries(convert ${VTK_LIBRARIES} vtkBPIO)
+target_link_libraries(convert ${VTK_LIBRARIES} vtkADIOSIO)

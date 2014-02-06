@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkBPDataSetWriter.cxx
+  Module:    vtkADIOSWriter.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,36 +12,32 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkBPDataSetWriter.h"
-#include <vtkDataSet.h>
-#include <vtkObjectFactory.h>
+#include "vtkADIOSWriter.h"
 
 //----------------------------------------------------------------------------
-vtkBPDataSetWriter::vtkBPDataSetWriter()
-: vtkBPDataObjectWriter()
+vtkADIOSWriter::vtkADIOSWriter()
 {
 }
 
 //----------------------------------------------------------------------------
-vtkBPDataSetWriter::~vtkBPDataSetWriter()
+vtkADIOSWriter::~vtkADIOSWriter()
 {
 }
 
 //----------------------------------------------------------------------------
-void vtkBPDataSetWriter::PrintSelf(std::ostream& os, vtkIndent indent)
+void vtkADIOSWriter::PrintSelf(std::ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
 }
 
 //----------------------------------------------------------------------------
-vtkDataSet* vtkBPDataSetWriter::GetInput() const
+vtkObject* vtkADIOSWriter::GetInput() const
 {
-  return static_cast<vtkDataSet*>(this->Superclass::GetInput());
+  return this->Input;
 }
 
 //----------------------------------------------------------------------------
-void vtkBPDataSetWriter::Write()
+void vtkADIOSWriter::Write()
 {
-  this->Superclass::Write();
 }
 

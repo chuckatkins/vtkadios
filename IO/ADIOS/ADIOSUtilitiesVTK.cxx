@@ -1,8 +1,8 @@
-#include "BPUtilitiesVTK.h"
+#include "ADIOSUtilitiesVTK.h"
 #include <vtkType.h>
 #include <adios.h>
 
-ADIOS_DATATYPES vtkBPUtilities::VTKToADIOSType(int v)
+ADIOS_DATATYPES vtkADIOSUtilities::VTKToADIOSType(int v)
 {
   switch(v)
     {

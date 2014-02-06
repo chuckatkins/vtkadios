@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    BPWriterVTKDefine.cxx
+  Module:    ADIOSWriterVTKDefine.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,9 +12,9 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "BPWriter.h"
-#include "BPUtilities.h"
-#include "BPUtilitiesVTK.h"
+#include "ADIOSWriter.h"
+#include "ADIOSUtilities.h"
+#include "ADIOSUtilitiesVTK.h"
 #include <vtkImageData.h>
 #include <vtkCellData.h>
 #include <vtkPointData.h>
@@ -26,7 +26,7 @@
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::DefineVariable<vtkAbstractArray>(const std::string &path,
+void ADIOSWriter::DefineVariable<vtkAbstractArray>(const std::string &path,
   const vtkAbstractArray *data)
 {
   vtkAbstractArray *dataTmp = const_cast<vtkAbstractArray*>(data);
@@ -37,24 +37,24 @@ void BPWriter::DefineVariable<vtkAbstractArray>(const std::string &path,
     return;
     }
 
-  //this->ADIOSGroupSize += BPUtilities::Define<std::string>(this->ADIOSGroup,
+  //this->ADIOSGroupSize += ADIOSUtilities::Define<std::string>(this->ADIOSGroup,
   //  path+"/Name", dataTmp->GetName());
-  this->ADIOSGroupSize += BPUtilities::Define<int>(this->ADIOSGroup,
+  this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
     path+"/NumberOfComponents");
-  this->ADIOSGroupSize += BPUtilities::Define<int>(this->ADIOSGroup,
+  this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
     path+"/NumberOfTuples");
 
   this->ADIOSGroupSize += dataTmp->GetDataTypeSize() *
                           dataTmp->GetNumberOfComponents() *
                           dataTmp->GetNumberOfTuples();
-  BPUtilities::Define(this->ADIOSGroup,
+  ADIOSUtilities::Define(this->ADIOSGroup,
     path+"/Values", (path+"/NumberOfComponents")+","+(path+"/NumberOfTuples"),
-    vtkBPUtilities::VTKToADIOSType(dataTmp->GetDataType()));
+    vtkADIOSUtilities::VTKToADIOSType(dataTmp->GetDataType()));
 }
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::DefineVariable<vtkDataArray>(const std::string &path,
+void ADIOSWriter::DefineVariable<vtkDataArray>(const std::string &path,
   const vtkDataArray *data)
 {
   vtkDataArray *dataTmp = const_cast<vtkDataArray*>(data);
@@ -76,7 +76,7 @@ void BPWriter::DefineVariable<vtkDataArray>(const std::string &path,
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::DefineVariable<vtkFieldData>(const std::string &path,
+void ADIOSWriter::DefineVariable<vtkFieldData>(const std::string &path,
   const vtkFieldData *data)
 {
   vtkFieldData *dataTmp = const_cast<vtkFieldData*>(data);
@@ -96,7 +96,7 @@ void BPWriter::DefineVariable<vtkFieldData>(const std::string &path,
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::DefineVariable<vtkDataSet>(const std::string &path,
+void ADIOSWriter::DefineVariable<vtkDataSet>(const std::string &path,
   const vtkDataSet *data)
 {
   vtkDataSet *dataTmp = const_cast<vtkDataSet*>(data);
@@ -117,7 +117,7 @@ void BPWriter::DefineVariable<vtkDataSet>(const std::string &path,
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::DefineVariable<vtkImageData>(const std::string &path,
+void ADIOSWriter::DefineVariable<vtkImageData>(const std::string &path,
   const vtkImageData *data)
 {
   this->CanDefine();
@@ -127,10 +127,10 @@ void BPWriter::DefineVariable<vtkImageData>(const std::string &path,
     return;
     }
 
-  this->ADIOSGroupSize += BPUtilities::Define<double>(this->ADIOSGroup,
+  this->ADIOSGroupSize += ADIOSUtilities::Define<double>(this->ADIOSGroup,
     path+"/Origin", 3);
-  this->ADIOSGroupSize += BPUtilities::Define<double>(this->ADIOSGroup,
+  this->ADIOSGroupSize += ADIOSUtilities::Define<double>(this->ADIOSGroup,
     path+"/Spacing", 3);
-  this->ADIOSGroupSize += BPUtilities::Define<int>(this->ADIOSGroup,
+  this->ADIOSGroupSize += ADIOSUtilities::Define<int>(this->ADIOSGroup,
     path+"/Extent", 6);
 }

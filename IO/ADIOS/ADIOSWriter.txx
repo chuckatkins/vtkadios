@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    BPWriter.txx
+  Module:    ADIOSWriter.txx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,26 +12,26 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#ifndef _BPWriter_txx_
-#define _BPWriter_txx_
-#include "BPWriter.h"
-#include "BPUtilities.h"
+#ifndef _ADIOSWriter_txx_
+#define _ADIOSWriter_txx_
+#include "ADIOSWriter.h"
+#include "ADIOSUtilities.h"
 
 //----------------------------------------------------------------------------
 template<typename T>
-void BPWriter::DefineVariable(const std::string &path, const T *data)
+void ADIOSWriter::DefineVariable(const std::string &path, const T *data)
 {
   this->CanDefine();
 
-  this->ADIOSGroupSize += BPUtilities::Define<T>(this->ADIOSGroup, path, data);
+  this->ADIOSGroupSize += ADIOSUtilities::Define<T>(this->ADIOSGroup, path, data);
 }
 
 //----------------------------------------------------------------------------
 template<typename T>
-void BPWriter::WriteVariable(const std::string &path, const T *data)
+void ADIOSWriter::WriteVariable(const std::string &path, const T *data)
 {
   this->IsWriting = true;
 
-  BPUtilities::Write<T>(this->ADIOSFile, path, data);
+  ADIOSUtilities::Write<T>(this->ADIOSFile, path, data);
 }
 #endif

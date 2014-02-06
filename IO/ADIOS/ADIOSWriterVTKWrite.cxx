@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    BPWriterVTKWrite.cxx
+  Module:    ADIOSWriterVTKWrite.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,9 +12,9 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "BPWriter.h"
-#include "BPWriter.txx"
-#include "BPUtilities.h"
+#include "ADIOSWriter.h"
+#include "ADIOSWriter.txx"
+#include "ADIOSUtilities.h"
 #include <vtkImageData.h>
 #include <vtkCellData.h>
 #include <vtkPointData.h>
@@ -25,7 +25,7 @@
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::WriteVariable<vtkAbstractArray>(const std::string &path,
+void ADIOSWriter::WriteVariable<vtkAbstractArray>(const std::string &path,
   const vtkAbstractArray *data)
 {
   vtkAbstractArray *dataTmp = const_cast<vtkAbstractArray*>(data);
@@ -36,19 +36,19 @@ void BPWriter::WriteVariable<vtkAbstractArray>(const std::string &path,
     return;
     }
 
-  //BPUtilities::Write<std::string>(this->ADIOSGroup, path+"/Name",
+  //ADIOSUtilities::Write<std::string>(this->ADIOSGroup, path+"/Name",
   //  dataTmp->GetName());
-  BPUtilities::Write<int>(this->ADIOSFile, path+"/NumberOfComponents",
+  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/NumberOfComponents",
     dataTmp->GetNumberOfComponents());
-  BPUtilities::Write<int>(this->ADIOSFile, path+"/NumberOfTuples",
+  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/NumberOfTuples",
     dataTmp->GetNumberOfTuples());
-  BPUtilities::Write<void>(this->ADIOSFile, path+"/Values",
+  ADIOSUtilities::Write<void>(this->ADIOSFile, path+"/Values",
     dataTmp->GetVoidPointer(0));
 }
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::WriteVariable<vtkDataArray>(const std::string &path,
+void ADIOSWriter::WriteVariable<vtkDataArray>(const std::string &path,
   const vtkDataArray *data)
 {
   vtkDataArray *dataTmp = const_cast<vtkDataArray*>(data);
@@ -70,7 +70,7 @@ void BPWriter::WriteVariable<vtkDataArray>(const std::string &path,
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::WriteVariable<vtkFieldData>(const std::string &path,
+void ADIOSWriter::WriteVariable<vtkFieldData>(const std::string &path,
   const vtkFieldData *data)
 {
   vtkFieldData *dataTmp = const_cast<vtkFieldData*>(data);
@@ -90,7 +90,7 @@ void BPWriter::WriteVariable<vtkFieldData>(const std::string &path,
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::WriteVariable<vtkDataSet>(const std::string &path,
+void ADIOSWriter::WriteVariable<vtkDataSet>(const std::string &path,
   const vtkDataSet *data)
 {
   vtkDataSet *dataTmp = const_cast<vtkDataSet*>(data);
@@ -111,7 +111,7 @@ void BPWriter::WriteVariable<vtkDataSet>(const std::string &path,
 
 //----------------------------------------------------------------------------
 template<>
-void BPWriter::WriteVariable<vtkImageData>(const std::string &path,
+void ADIOSWriter::WriteVariable<vtkImageData>(const std::string &path,
   const vtkImageData *data)
 {
   vtkImageData *dataTmp = const_cast<vtkImageData*>(data);
@@ -123,10 +123,10 @@ void BPWriter::WriteVariable<vtkImageData>(const std::string &path,
     return;
     }
 
-  BPUtilities::Write<double>(this->ADIOSFile, path+"/Origin",
+  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/Origin",
     dataTmp->GetOrigin());
-  BPUtilities::Write<double>(this->ADIOSFile, path+"/Spacing",
+  ADIOSUtilities::Write<double>(this->ADIOSFile, path+"/Spacing",
     dataTmp->GetSpacing());
-  BPUtilities::Write<int>(this->ADIOSFile, path+"/Extent",
+  ADIOSUtilities::Write<int>(this->ADIOSFile, path+"/Extent",
     dataTmp->GetExtent());
 }

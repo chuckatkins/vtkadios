@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    BPWriter.cxx
+  Module:    ADIOSWriter.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,8 +12,8 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "BPWriter.h"
-#include "BPUtilities.h"
+#include "ADIOSWriter.h"
+#include "ADIOSUtilities.h"
 #include <vtkImageData.h>
 #include <vtkCell.h>
 #include <vtkCellData.h>
@@ -23,32 +23,32 @@
 #define COMMUNICATOR MPI_COMM_WORLD
 
 //----------------------------------------------------------------------------
-BPWriter::BPWriter(void)
-: IsWriting(false), ADIOSGroup(BPUtilities::ADIOS_INVALID_INT64),
-  ADIOSFile(BPUtilities::ADIOS_INVALID_INT64), ADIOSGroupSize(0)
+ADIOSWriter::ADIOSWriter(void)
+: IsWriting(false), ADIOSGroup(ADIOSUtilities::ADIOS_INVALID_INT64),
+  ADIOSFile(ADIOSUtilities::ADIOS_INVALID_INT64), ADIOSGroupSize(0)
 {
   int err;
 
   err = adios_init_noxml(COMMUNICATOR);
-  BPUtilities::TestError1(err, adios_get_last_errmsg());
+  ADIOSUtilities::TestError1(err, adios_get_last_errmsg());
 
   err = adios_allocate_buffer(ADIOS_BUFFER_ALLOC_NOW, 10);
-  BPUtilities::TestError1(err, adios_get_last_errmsg());
+  ADIOSUtilities::TestError1(err, adios_get_last_errmsg());
 
   err = adios_declare_group(&this->ADIOSGroup, "VTK", "",
     adios_flag_yes);
-  BPUtilities::TestError1(err, adios_get_last_errmsg());
+  ADIOSUtilities::TestError1(err, adios_get_last_errmsg());
 
   err = adios_select_method(this->ADIOSGroup, "POSIX", "", "");
-  BPUtilities::TestError1(err, adios_get_last_errmsg());
+  ADIOSUtilities::TestError1(err, adios_get_last_errmsg());
 }
 
 //----------------------------------------------------------------------------
-BPWriter::~BPWriter(void)
+ADIOSWriter::~ADIOSWriter(void)
 {
   int err;
 
-  if(this->ADIOSFile != BPUtilities::ADIOS_INVALID_INT64)
+  if(this->ADIOSFile != ADIOSUtilities::ADIOS_INVALID_INT64)
     {
     adios_close(this->ADIOSFile);
     err = adios_finalize(0);
@@ -67,21 +67,21 @@ BPWriter::~BPWriter(void)
 }
 
 //----------------------------------------------------------------------------
-void BPWriter::InitializeFile(const std::string &fileName)
+void ADIOSWriter::InitializeFile(const std::string &fileName)
 {
   int err;
 
   err = adios_open(&this->ADIOSFile, "VTK", fileName.c_str(), "w",
     COMMUNICATOR);
-  BPUtilities::TestError1(err, adios_get_last_errmsg());
+  ADIOSUtilities::TestError1(err, adios_get_last_errmsg());
 
   uint64_t totalSize;
   err = adios_group_size(this->ADIOSFile, this->ADIOSGroupSize,  &totalSize);
-  BPUtilities::TestError1(err, adios_get_last_errmsg());
+  ADIOSUtilities::TestError1(err, adios_get_last_errmsg());
 }
 
 //----------------------------------------------------------------------------
-void BPWriter::CanDefine(void)
+void ADIOSWriter::CanDefine(void)
 {
   if(this->IsWriting)
     {

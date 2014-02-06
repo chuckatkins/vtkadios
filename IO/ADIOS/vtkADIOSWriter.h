@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkBPWriter.h
+  Module:    vtkADIOSWriter.h
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,24 +12,24 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkBPWriter - Write ADIOS BP files.
+// .NAME vtkADIOSWriter - Write ADIOS ADIOS files.
 // .SECTION Description
-// vtkBPWriter is the base class for all BP writers
+// vtkADIOSWriter is the base class for all ADIOS writers
 
-#ifndef __vtkBPWriter_h
-#define __vtkBPWriter_h
+#ifndef __vtkADIOSWriter_h
+#define __vtkADIOSWriter_h
 
 #include <string>
 
-#include "vtkIOBPModule.h" // For export macro
-#include "BPWriter.h"
+#include "vtkIOADIOSModule.h" // For export macro
+#include "ADIOSWriter.h"
 
 #include <vtkObject.h>
 
-class VTKIOBP_EXPORT vtkBPWriter : public vtkObject
+class VTKIOADIOS_EXPORT vtkADIOSWriter : public vtkObject
 {
 public:
-  vtkTypeMacro(vtkBPWriter,vtkObject);
+  vtkTypeMacro(vtkADIOSWriter,vtkObject);
   virtual void PrintSelf(std::ostream& os, vtkIndent indent);
 
   //BTX
@@ -59,14 +59,14 @@ protected:
   std::string FileName;
   vtkObject* Input;
 
-  BPWriter Writer;
+  ADIOSWriter Writer;
 
-  vtkBPWriter();
-  ~vtkBPWriter();
+  vtkADIOSWriter();
+  ~vtkADIOSWriter();
 
 private:
-  vtkBPWriter(const vtkBPWriter&);  // Not implemented.
-  void operator=(const vtkBPWriter&);  // Not implemented.
+  vtkADIOSWriter(const vtkADIOSWriter&);  // Not implemented.
+  void operator=(const vtkADIOSWriter&);  // Not implemented.
 };
 
 #endif
