@@ -13,6 +13,9 @@
 
 =========================================================================*/
 #include "vtkADIOSWriter.h"
+#include <vtkObjectFactory.h>
+
+vtkStandardNewMacro(vtkADIOSWriter);
 
 //----------------------------------------------------------------------------
 vtkADIOSWriter::vtkADIOSWriter()
@@ -28,16 +31,11 @@ vtkADIOSWriter::~vtkADIOSWriter()
 void vtkADIOSWriter::PrintSelf(std::ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
+  os << indent << "FileName: " << this->FileName << std::endl;
 }
 
 //----------------------------------------------------------------------------
-vtkObject* vtkADIOSWriter::GetInput() const
+void vtkADIOSWriter::InitializeFile(void)
 {
-  return this->Input;
+  this->Writer.InitializeFile(this->FileName);
 }
-
-//----------------------------------------------------------------------------
-void vtkADIOSWriter::Write()
-{
-}
-

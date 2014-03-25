@@ -6,14 +6,16 @@ set(vtkADIOSIO_SOURCES
   vtkIOADIOSModule.h
 
   ADIOSUtilities.h            ADIOSUtilities.cxx
-  ADIOSUtilitiesVTK.h         ADIOSUtilitiesVTK.cxx
+  ADIOSVarInfo.h              ADIOSVarInfo.cxx
+  ADIOSReader.h               ADIOSReader.cxx
+  ADIOSReaderImpl.h
+  vtkADIOSReader.h            vtkADIOSReader.cxx
+
   ADIOSWriter.h               ADIOSWriter.cxx
-  ADIOSWriter.txx             ADIOSWriterVTKDefine.cxx
-                           ADIOSWriterVTKWrite.cxx
-
   vtkADIOSWriter.h            vtkADIOSWriter.cxx
-
-  vtkADIOSImageDataWriter.h   vtkADIOSImageDataWriter.cxx
+  vtkADIOSWriterDefine.cxx    vtkADIOSWriterWrite.cxx
+#
+#  vtkADIOSImageDataWriter.h   vtkADIOSImageDataWriter.cxx
 )
 add_library(vtkADIOSIO ${vtkADIOSIO_SOURCES})
 target_link_libraries(vtkADIOSIO ${ADIOS_LIBRARIES})

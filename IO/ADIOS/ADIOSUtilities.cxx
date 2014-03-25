@@ -4,64 +4,92 @@
 #include <complex>
 #include <string>
 
-#include <adios.h>
+#define INSTANTIATE(TN, TA) \
+template<> ADIOS_DATATYPES ADIOSUtilities::TypeNativeToADIOS<TN>::T = TA;
+INSTANTIATE(int8_t, adios_byte)
+INSTANTIATE(int16_t, adios_short)
+INSTANTIATE(int32_t, adios_integer)
+INSTANTIATE(int64_t, adios_long)
+INSTANTIATE(uint8_t, adios_unsigned_byte)
+INSTANTIATE(uint16_t, adios_unsigned_short)
+INSTANTIATE(uint32_t, adios_unsigned_integer)
+INSTANTIATE(uint64_t, adios_unsigned_long)
+INSTANTIATE(float, adios_real)
+INSTANTIATE(double, adios_double)
+INSTANTIATE(std::complex<float>, adios_complex)
+INSTANTIATE(std::complex<double>, adios_double_complex)
+INSTANTIATE(std::string, adios_string)
+#undef INSTANTIATE
 
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<int8_t>::T = adios_byte;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<int16_t>::T = adios_short;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<int32_t>::T = adios_integer;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<int64_t>::T = adios_long;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<uint8_t>::T = adios_unsigned_byte;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<uint16_t>::T = adios_unsigned_short;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<uint32_t>::T = adios_unsigned_integer;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<uint64_t>::T = adios_unsigned_long;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<float>::T = adios_real;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<double>::T = adios_double;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<long double>::T = adios_long_double;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<std::complex<float> >::T = adios_complex;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<std::complex<double> >::T = adios_double_complex;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<long long>::T = adios_long;
-template<> ADIOS_DATATYPES ADIOSUtilities::ADIOSType<std::string>::T = adios_string;
+#define INSTANTIATE(TN, TV) \
+template<> int ADIOSUtilities::TypeNativeToVTK<TN>::T = TV;
+INSTANTIATE(int8_t, VTK_TYPE_INT8)
+INSTANTIATE(int16_t, VTK_TYPE_INT16)
+INSTANTIATE(int32_t, VTK_TYPE_INT32)
+INSTANTIATE(int64_t, VTK_TYPE_INT64)
+INSTANTIATE(uint8_t, VTK_TYPE_UINT8)
+INSTANTIATE(uint16_t, VTK_TYPE_UINT16)
+INSTANTIATE(uint32_t, VTK_TYPE_UINT32)
+INSTANTIATE(uint64_t, VTK_TYPE_UINT64)
+INSTANTIATE(float, VTK_FLOAT)
+INSTANTIATE(double, VTK_DOUBLE)
+INSTANTIATE(std::string, VTK_STRING)
+#undef INSTANTIATE
 
-const int64_t ADIOSUtilities::ADIOS_INVALID_INT64 = std::numeric_limits<int64_t>::max();
-
-size_t ADIOSUtilities::TypeSize(ADIOS_DATATYPES t)
+ADIOS_DATATYPES ADIOSUtilities::TypeVTKToADIOS(int tv)
 {
-  switch(t)
+  switch(tv)
     {
-    case adios_byte:
-    case adios_unsigned_byte: return 1;
-    case adios_short:
-    case adios_unsigned_short: return 2;
-    case adios_integer:
-    case adios_unsigned_integer:
-    case adios_real: return 4;
-    case adios_long:
-    case adios_unsigned_long:
-    case adios_double:
-    case adios_complex:  return 8;
-    case adios_long_double:
-    case adios_double_complex: return 16;
-    default: return 0;
+    case VTK_TYPE_INT8: return adios_byte;
+    case VTK_TYPE_INT16: return adios_short;
+    case VTK_TYPE_INT32: return adios_integer;
+    case VTK_TYPE_INT64: return adios_long;
+    case VTK_TYPE_UINT8: return adios_unsigned_byte;
+    case VTK_TYPE_UINT16: return adios_unsigned_short;
+    case VTK_TYPE_UINT32: return adios_unsigned_integer;
+    case VTK_TYPE_UINT64: return adios_unsigned_long;
+    case VTK_FLOAT: return adios_real;
+    case VTK_DOUBLE: return adios_double;
+    case VTK_STRING: return adios_string;
+    default: return adios_unknown;
     }
 }
 
-// Specialization for std::string
-template<>
-size_t ADIOSUtilities::Define<std::string>(int64_t group, const std::string &path,
-  const std::string &data)
+int ADIOSUtilities::TypeADIOSToVTK(ADIOS_DATATYPES ta)
 {
-  std::cout << "Def: " << path << " " << data.size() << std::endl;
-  int id = adios_define_var(group, path.c_str(), "", adios_string,
-    NULL, NULL, NULL);
-  TestError0(id, "Failed to define "+path);
-  return data.size();
+  switch(ta)
+    {
+    case adios_byte: return VTK_TYPE_INT8;
+    case adios_short: return VTK_TYPE_INT16;
+    case adios_integer: return VTK_TYPE_INT32;
+    case adios_long: return VTK_TYPE_INT64;
+    case adios_unsigned_byte: return VTK_TYPE_UINT8;
+    case adios_unsigned_short: return VTK_TYPE_UINT16;
+    case adios_unsigned_integer: return VTK_TYPE_UINT32;
+    case adios_unsigned_long: return VTK_TYPE_UINT64;
+    case adios_real: return VTK_FLOAT;
+    case adios_double: return VTK_DOUBLE;
+    case adios_string: return VTK_STRING;
+    default:  return -1;
+    }
 }
 
-// Specialization for std::string; automatically convert to char*
-template<>
-void ADIOSUtilities::Write<std::string>(int64_t file, const std::string &path,
-  const std::string &data)
+size_t ADIOSUtilities::TypeSize(ADIOS_DATATYPES ta)
 {
-  int err = adios_write(file, path.c_str(), const_cast<char*>(data.c_str()));
-  TestError1(err, "Failed to write "+path);
+  switch(ta)
+    {
+    case adios_byte: return 1;
+    case adios_short: return 2;
+    case adios_integer: return 4;
+    case adios_long: return 8;
+    case adios_unsigned_byte: return 1;
+    case adios_unsigned_short: return 2;
+    case adios_unsigned_integer: return 4;
+    case adios_unsigned_long: return 8;
+    case adios_real: return 4;
+    case adios_double: return 8;
+    case adios_complex: return 8;
+    case adios_double_complex: return 16;
+    return 0;
+    }
 }

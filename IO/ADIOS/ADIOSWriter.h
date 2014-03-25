@@ -12,48 +12,57 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME ADIOSWriter - The utility class performing all ADIOS operations
+// .NAME ADIOSWriter - The utility class performing ADIOS Write operations
 
 #ifndef _ADIOSWriter_h
 #define _ADIOSWriter_h
 
-#include <stdint.h>
-#include <cstdarg>
 #include <string>
-#include <stdexcept>
-#include <utility>
-#include <map>
+#include <vector>
 
 class ADIOSWriter
 {
 public:
   ADIOSWriter(void);
-  virtual ~ADIOSWriter(void);
+  ~ADIOSWriter(void);
+
+  // Description
+  // Define scalars for later writing
+  template<typename TN>
+  void DefineScalar(const std::string& path);
+
+  // Description
+  // Define scalars for later writing
+  void DefineScalar(const std::string& path, const std::string& v);
+
+  // Description
+  // Define arrays for later writing
+  template<typename TN>
+  void DefineArray(const std::string& path, const std::vector<size_t>& dims);
+
+  // Description
+  // Define arrays for later writing
+  void DefineArray(const std::string& path, const std::vector<size_t>& dims,
+    int vtkType);
 
   // Description:
-  // Declare the underlying variables within the associated Object
-  template<typename T>
-  void DefineVariable(const std::string &path, const T *data);
-
-  // Description:
-  // Set up the required ADIOS handles
+  // Open the ADIOS file and cache the variable names and scalar data
   void InitializeFile(const std::string &fileName);
 
-  // Description:
-  // Write the data associated with previously declared variables aned arrays
-  template<typename T>
-  void WriteVariable(const std::string &path, const T *data);
+  // Description
+  // Schedule scalars for writing
+  template<typename TN>
+  void WriteScalar(const std::string& path, const TN& value);
+
+  // Description
+  // Schedule arrays for writing
+  template<typename TN>
+  void WriteArray(const std::string& path, const TN* value);
 
 protected:
-  bool IsWriting;
-  int64_t ADIOSFile;
-  int64_t ADIOSGroup;
-  int64_t ADIOSGroupSize;
+  struct ADIOSWriterImpl;
 
-  // Description:
-  // Check whether or not it is safe to define a variable and throw an
-  // exception if not
-  void CanDefine(void);
+  ADIOSWriterImpl *Impl;
 };
 
 #endif

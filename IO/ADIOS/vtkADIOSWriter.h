@@ -12,7 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkADIOSWriter - Write ADIOS ADIOS files.
+// .NAME vtkADIOSWriter - Write ADIOS files.
 // .SECTION Description
 // vtkADIOSWriter is the base class for all ADIOS writers
 
@@ -23,20 +23,21 @@
 
 #include "vtkIOADIOSModule.h" // For export macro
 #include "ADIOSWriter.h"
-
 #include <vtkObject.h>
+
+class vtkAbstractArray;
+class vtkDataArray;
+class vtkFieldData;
+class vtkDataSet;
+class vtkImageData;
+class vtkPolyData;
 
 class VTKIOADIOS_EXPORT vtkADIOSWriter : public vtkObject
 {
 public:
+  static vtkADIOSWriter *New();
   vtkTypeMacro(vtkADIOSWriter,vtkObject);
   virtual void PrintSelf(std::ostream& os, vtkIndent indent);
-
-  //BTX
-  // Description:
-  // Get the writer's input.
-  vtkObject* GetInput() const;
-  //ETX
 
   //BTX
   // Description:
@@ -52,13 +53,29 @@ public:
   //ETX
   
   // Description:
-  // The main interface which triggers the writer to start.
-  virtual void Write();
+  // Define a VTK data type
+  void Define(const std::string& path, const vtkAbstractArray* value);
+  void Define(const std::string& path, const vtkDataArray* value);
+  void Define(const std::string& path, const vtkFieldData* value);
+  void Define(const std::string& path, const vtkDataSet* value);
+  void Define(const std::string& path, const vtkImageData* value);
+  void Define(const std::string& path, const vtkPolyData* value);
+
+  // Description:
+  // Open a file and prepare for writing already defined variables
+  void InitializeFile(void);
+
+  // Description:
+  // Write a previously defined VTK data type
+  void Write(const std::string& path, const vtkAbstractArray* value);
+  void Write(const std::string& path, const vtkDataArray* value);
+  void Write(const std::string& path, const vtkFieldData* value);
+  void Write(const std::string& path, const vtkDataSet* value);
+  void Write(const std::string& path, const vtkImageData* value);
+  void Write(const std::string& path, const vtkPolyData* value);
 
 protected:
   std::string FileName;
-  vtkObject* Input;
-
   ADIOSWriter Writer;
 
   vtkADIOSWriter();

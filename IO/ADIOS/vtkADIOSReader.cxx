@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkADIOSImageDataWriter->cxx
+  Module:    vtkADIOSReader.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,47 +12,43 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkADIOSImageDataWriter.h"
-#include <vtkImageData.h>
+#include "vtkADIOSReader.h"
+#include "vtkADIOSReaderImpl.h"
 #include <vtkObjectFactory.h>
 
-
-vtkStandardNewMacro(vtkADIOSImageDataWriter);
+vtkStandardNewMacro(vtkADIOSReader);
 
 //----------------------------------------------------------------------------
-vtkADIOSImageDataWriter::vtkADIOSImageDataWriter()
-: vtkADIOSWriter()
+vtkADIOSReader::vtkADIOSReader()
+: Impl(new vtkADIOSReader::vtkADIOSReaderImpl)
 {
 }
 
 //----------------------------------------------------------------------------
-vtkADIOSImageDataWriter::~vtkADIOSImageDataWriter()
+vtkADIOSReader::~vtkADIOSReader()
 {
+  delete this->Impl;
 }
 
 //----------------------------------------------------------------------------
-void vtkADIOSImageDataWriter::PrintSelf(std::ostream& os, vtkIndent indent)
+void vtkADIOSReader::PrintSelf(std::ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
+  os << indent << "FileName: " << this->FileName << std::endl;
+  os << indent << "Tree: " << std::endl;
+  this->Impl->Tree.PrintSelf(os, indent.GetNextIndent());
 }
 
 //----------------------------------------------------------------------------
-vtkImageData* vtkADIOSImageDataWriter::GetInput() const
+void vtkADIOSReader::Read(void)
 {
-  return static_cast<vtkImageData*>(this->Superclass::GetInput());
+  this->Reader.InitializeFile(this->FileName);
+  this->Impl->BuildDirTree(this->Reader);
 }
 
 //----------------------------------------------------------------------------
-void vtkADIOSImageDataWriter::SetInput(vtkImageData* input)
+void vtkADIOSReader::InitializeObject(const std::string& path,
+  vtkDataArray* data)
 {
-  this->Input = input;
-}
-
-//----------------------------------------------------------------------------
-void vtkADIOSImageDataWriter::Write()
-{
-  vtkImageData *input = this->GetInput();
-  this->Writer.DefineVariable<vtkImageData>("vtkImageData", input);
-  this->Writer.InitializeFile(this->GetFileName());
-  this->Writer.WriteVariable<vtkImageData>("vtkImageData", input);
+  
 }

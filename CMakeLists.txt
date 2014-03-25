@@ -18,5 +18,8 @@ include(${VTK_USE_FILE})
 
 add_subdirectory(IO)
 
-add_executable(convert convert.cxx)
-target_link_libraries(convert ${VTK_LIBRARIES} vtkADIOSIO)
+add_executable(ADIOSWriteImage ADIOSWriteImage.cxx)
+target_link_libraries(ADIOSWriteImage ${VTK_LIBRARIES} vtkADIOSIO)
+
+add_executable(ADIOSDumpImage ADIOSDumpImage.cxx)
+target_link_libraries(ADIOSDumpImage ${VTK_LIBRARIES} vtkADIOSIO)
