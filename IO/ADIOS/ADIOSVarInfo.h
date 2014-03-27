@@ -32,6 +32,7 @@ public:
   int GetType(void) const;
   size_t GetNumSteps(void) const;
   bool IsGlobal(void) const;
+  bool IsScalar(void) const;
   void GetDims(std::vector<size_t>& dims) const;
 
   template<typename T>

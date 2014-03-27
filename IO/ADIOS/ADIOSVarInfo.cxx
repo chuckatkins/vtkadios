@@ -61,6 +61,18 @@ size_t ADIOSVarInfo::GetNumSteps(void) const
 }
 
 //----------------------------------------------------------------------------
+bool ADIOSVarInfo::IsGlobal(void) const
+{
+  return this->Impl->Var->global == 1;
+}
+
+//----------------------------------------------------------------------------
+bool ADIOSVarInfo::IsScalar(void) const
+{
+  return this->Impl->Var->ndim == 0;
+}
+
+//----------------------------------------------------------------------------
 void ADIOSVarInfo::GetDims(std::vector<size_t>& dims) const
 {
   dims.clear();
@@ -69,22 +81,14 @@ void ADIOSVarInfo::GetDims(std::vector<size_t>& dims) const
 }
 
 //----------------------------------------------------------------------------
-bool ADIOSVarInfo::IsGlobal(void) const
-{
-  return this->Impl->Var->global == 1;
-}
-
-//----------------------------------------------------------------------------
 template<typename T>
 T ADIOSVarInfo::GetValue(void) const
 {
-  #define CAST_RETURN(TN) return static_cast<T>(reinterpret_cast<const T*>(this->Impl->Var->value));
-
-  switch(this->Impl->Var->type)
+  if(ADIOSUtilities::TypeNativeToADIOS<T>::T != this->Impl->Var->type)
     {
-    case adios_byte: CAST_RETURN(int8_t)
     throw std::runtime_error("Incompatible type");
     }
+  return *reinterpret_cast<const T*>(this->Impl->Var->value);
 }
 
 template<>
@@ -97,11 +101,11 @@ std::string ADIOSVarInfo::GetValue<std::string>(void) const
   return reinterpret_cast<const char*>(this->Impl->Var->value);
 }
 
-template<> int8_t ADIOSVarInfo::GetValue<int8_t>(void) const;
-template<> int16_t ADIOSVarInfo::GetValue<int16_t>(void) const;
-template<> int32_t ADIOSVarInfo::GetValue<int32_t>(void) const;
-template<> uint8_t ADIOSVarInfo::GetValue<uint8_t>(void) const;
-template<> uint16_t ADIOSVarInfo::GetValue<uint16_t>(void) const;
-template<> uint32_t ADIOSVarInfo::GetValue<uint32_t>(void) const;
-template<> float ADIOSVarInfo::GetValue<float>(void) const;
-template<> double ADIOSVarInfo::GetValue<double>(void) const;
+template int8_t ADIOSVarInfo::GetValue<int8_t>(void) const;
+template int16_t ADIOSVarInfo::GetValue<int16_t>(void) const;
+template int32_t ADIOSVarInfo::GetValue<int32_t>(void) const;
+template uint8_t ADIOSVarInfo::GetValue<uint8_t>(void) const;
+template uint16_t ADIOSVarInfo::GetValue<uint16_t>(void) const;
+template uint32_t ADIOSVarInfo::GetValue<uint32_t>(void) const;
+template float ADIOSVarInfo::GetValue<float>(void) const;
+template double ADIOSVarInfo::GetValue<double>(void) const;

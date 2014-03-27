@@ -42,10 +42,32 @@ struct vtkADIOSDirTree
   // Description:
   // Retrieve a directory object
   vtkADIOSDirTree* GetDir(const std::string& path, size_t numDrop = 0,
-    bool createPath = false);
-  vtkADIOSDirTree* GetDir(const std::vector<std::string>& path,
-    size_t numDrop = 0, bool createPath = false);
+    bool createPath = false)
+  {
+    std::vector<std::string> tok;
+    Tokenize(path, tok);
+    return GetDir(tok, numDrop, createPath);
+  }
 
+  vtkADIOSDirTree* GetDir(const std::vector<std::string>& path,
+    size_t numDrop, bool createPath);
+
+  const vtkADIOSDirTree* GetDir(const std::string& path,
+    size_t numDrop = 0) const
+  {
+    std::vector<std::string> tok;
+    Tokenize(path, tok);
+    return GetDir(tok, numDrop);
+  }
+  const vtkADIOSDirTree* GetDir(const std::vector<std::string>& path,
+    size_t numDrop = 0) const;
+
+  // Description:
+  // Access variables by name
+  const ADIOSVarInfo* operator[](const std::string& name) const;
+
+  // Description:
+  // A helper function to split a string into delimited components
   static void Tokenize(const std::string& path, std::vector<std::string>& split,
     char delim='/');
 };

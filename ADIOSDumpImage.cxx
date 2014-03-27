@@ -47,9 +47,7 @@ vtkSmartPointer<vtkImageData> readADIOSImage(const std::string &filename)
   reader->Read();
   reader->PrintSelf(std::cout, vtkIndent(1));
 
-  vtkSmartPointer<vtkDataArray> data(
-    reader->CreateObject<vtkDataArray>("/vtkDataSet/PointData/Scalars_"));
-  data->PrintSelf(std::cout, vtkIndent(1));
+  vtkSmartPointer<vtkImageData> data(reader->CreateObject<vtkImageData>("/"));
 
-  return NULL;
+  return data;
 }

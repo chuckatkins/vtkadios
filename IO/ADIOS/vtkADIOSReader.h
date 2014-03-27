@@ -31,8 +31,10 @@
 #include "ADIOSReader.h"
 
 class vtkDataArray;
-class vtkFieldData;
 class vtkImageData;
+class vtkDataSet;
+class vtkDataSetAttributes;
+class vtkFieldData;
 class vtkPolyData;
 
 //----------------------------------------------------------------------------
@@ -70,8 +72,15 @@ public:
 protected:
 
   // Description:
-  // Initialize a pre-allocated object with it's appropriate scalars
+  // Initialize a pre-allocated object with it's appropriate scalars.  These
+  // methods do not perform any validation and assume that the provides ADIOS
+  // structures and vtk objects are properly formed
   static void InitializeObject(const ADIOSVarInfo* info, vtkDataArray* data);
+  static void InitializeObject(const vtkADIOSDirTree *dir, vtkImageData* data);
+  static void InitializeObject(const vtkADIOSDirTree *dir, vtkDataSet* data);
+  static void InitializeObject(const vtkADIOSDirTree *dir,
+    vtkDataSetAttributes* data);
+  static void InitializeObject(const vtkADIOSDirTree *dir, vtkFieldData* data);
 
 
   std::string FileName;
@@ -88,7 +97,6 @@ private:
 
 #define DECLARE_EXPLICIT(T) \
 template<> T* vtkADIOSReader::CreateObject<T>(const std::string& path);
-DECLARE_EXPLICIT(vtkDataArray)
 DECLARE_EXPLICIT(vtkImageData)
 #undef DECLARE_EXPLICIT
 

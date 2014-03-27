@@ -93,12 +93,12 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkImageData* v)
   this->Writer.DefineScalar<double>(path+"/SpacingX");
   this->Writer.DefineScalar<double>(path+"/SpacingY");
   this->Writer.DefineScalar<double>(path+"/SpacingZ");
-  this->Writer.DefineScalar<double>(path+"/ExtentXMin");
-  this->Writer.DefineScalar<double>(path+"/ExtentYMin");
-  this->Writer.DefineScalar<double>(path+"/ExtentZMin");
-  this->Writer.DefineScalar<double>(path+"/ExtentXMax");
-  this->Writer.DefineScalar<double>(path+"/ExtentYMax");
-  this->Writer.DefineScalar<double>(path+"/ExtentZMax");
+  this->Writer.DefineScalar<int>(path+"/ExtentXMin");
+  this->Writer.DefineScalar<int>(path+"/ExtentXMax");
+  this->Writer.DefineScalar<int>(path+"/ExtentYMin");
+  this->Writer.DefineScalar<int>(path+"/ExtentYMax");
+  this->Writer.DefineScalar<int>(path+"/ExtentZMin");
+  this->Writer.DefineScalar<int>(path+"/ExtentZMax");
 }
 
 void vtkADIOSWriter::Define(const std::string& path, const vtkPolyData* v)

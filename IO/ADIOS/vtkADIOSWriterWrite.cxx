@@ -93,10 +93,10 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkImageData* v)
 
   int *extent = valueTmp->GetExtent();
   this->Writer.WriteScalar<int>(path+"/ExtentXMin", extent[0]);
-  this->Writer.WriteScalar<int>(path+"/ExtentYMin", extent[1]);
-  this->Writer.WriteScalar<int>(path+"/ExtentZMin", extent[2]);
-  this->Writer.WriteScalar<int>(path+"/ExtentXMax", extent[3]);
-  this->Writer.WriteScalar<int>(path+"/ExtentYMax", extent[4]);
+  this->Writer.WriteScalar<int>(path+"/ExtentXMax", extent[1]);
+  this->Writer.WriteScalar<int>(path+"/ExtentYMin", extent[2]);
+  this->Writer.WriteScalar<int>(path+"/ExtentYMax", extent[3]);
+  this->Writer.WriteScalar<int>(path+"/ExtentZMin", extent[4]);
   this->Writer.WriteScalar<int>(path+"/ExtentZMax", extent[5]);
 }
 

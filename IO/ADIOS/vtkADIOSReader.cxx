@@ -19,7 +19,16 @@
 #include "vtkADIOSReader.h"
 #include "ADIOSVarInfo.h"
 #include <vtkObjectFactory.h>
+#include <vtkType.h>
 #include <vtkDataArray.h>
+#include <vtkFieldData.h>
+#include <vtkCellData.h>
+#include <vtkPointData.h>
+#include <vtkImageData.h>
+
+//----------------------------------------------------------------------------
+typedef std::map<std::string, vtkADIOSDirTree> SubDirMap;
+typedef std::map<std::string, const ADIOSVarInfo*> VarMap;
 
 //----------------------------------------------------------------------------
 
@@ -52,41 +61,6 @@ void vtkADIOSReader::Read(void)
 }
 
 //----------------------------------------------------------------------------
-typedef std::map<std::string, vtkADIOSDirTree> SubDirMap;
-typedef std::map<std::string, const ADIOSVarInfo*> VarMap;
-
-//----------------------------------------------------------------------------
-template<>
-vtkDataArray* vtkADIOSReader::CreateObject<vtkDataArray>(
-  const std::string& path)
-{
-  std::vector<std::string> pathSep;
-  vtkADIOSDirTree::Tokenize(path, pathSep);
-  const std::string &varName = pathSep[pathSep.size()-1];
-
-  vtkADIOSDirTree *subDir = this->Tree.GetDir(pathSep, 1);
-  if(subDir == NULL)
-    {
-    return NULL;
-    }
-
-  // Just a plain 'ol array
-  VarMap::iterator itArray;
-  if((itArray = subDir->Arrays.find(varName)) != subDir->Arrays.end())
-    {
-    const ADIOSVarInfo* info = itArray->second;
-    vtkDataArray* data = vtkDataArray::CreateDataArray(info->GetType());
-    data->SetName(varName.c_str());
-    InitializeObject(info, data);
-    return data;
-    }
-
-  // TODO: Add support for lookup tables
-
-  return NULL;
-}
-
-//----------------------------------------------------------------------------
 template<>
 vtkImageData* vtkADIOSReader::CreateObject<vtkImageData>(
   const std::string& path)
@@ -97,18 +71,25 @@ vtkImageData* vtkADIOSReader::CreateObject<vtkImageData>(
     return NULL;
     }
 
-  return NULL;
+  const ADIOSVarInfo *v = (*subDir)["vtkDataObjectType"];
+  if(!(v && v->IsScalar() && v->GetValue<vtkTypeUInt8>() == VTK_IMAGE_DATA))
+    {
+    return NULL;
+    }
+
+  // Avoid excessive validation and assume that if we have a vtkDataObjectField
+  // then the remainder of the subdirectory will be in proper form
+
+  vtkImageData *data = vtkImageData::New();
+  InitializeObject(subDir, data);
+
+  return data;
 }
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::InitializeObject(const ADIOSVarInfo* info,
   vtkDataArray* data)
 {
-  if(info->GetType() != data->GetDataType())
-    {
-    throw std::runtime_error("Mismatched array data types");
-    }
-
   std::vector<size_t> dims;
   info->GetDims(dims);
   if(dims.size() < 2)
@@ -118,4 +99,126 @@ void vtkADIOSReader::InitializeObject(const ADIOSVarInfo* info,
 
   data->SetNumberOfComponents(dims[0]);
   data->SetNumberOfTuples(dims[1]);
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
+  vtkImageData* data)
+{
+  data->SetOrigin(
+    (*subDir)["OriginX"]->GetValue<double>(),
+    (*subDir)["OriginY"]->GetValue<double>(),
+    (*subDir)["OriginZ"]->GetValue<double>());
+  data->SetSpacing(
+    (*subDir)["SpacingX"]->GetValue<double>(),
+    (*subDir)["SpacingY"]->GetValue<double>(),
+    (*subDir)["SpacingZ"]->GetValue<double>());
+  data->SetExtent(
+    (*subDir)["ExtentXMin"]->GetValue<int>(),
+    (*subDir)["ExtentXMax"]->GetValue<int>(),
+    (*subDir)["ExtentYMin"]->GetValue<int>(),
+    (*subDir)["ExtentYMax"]->GetValue<int>(),
+    (*subDir)["ExtentZMin"]->GetValue<int>(),
+    (*subDir)["ExtentZMax"]->GetValue<int>());
+
+  InitializeObject(subDir->GetDir("vtkDataSet"),
+    static_cast<vtkDataSet*>(data));
+}
+//----------------------------------------------------------------------------
+void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
+  vtkDataSet* data)
+{
+  const vtkADIOSDirTree *d;
+
+  if(d = subDir->GetDir("FieldData"))
+    {
+    InitializeObject(d, data->GetFieldData());
+    }
+  if(d = subDir->GetDir("CellData"))
+    {
+    InitializeObject(d, data->GetCellData());
+    }
+  if(d = subDir->GetDir("PointData"))
+    {
+    InitializeObject(d, data->GetPointData());
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
+  vtkDataSetAttributes* data)
+{
+  const ADIOSVarInfo *v;
+
+  if(v = (*subDir)["Scalars_"])
+    {
+    vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
+    da->SetName("Scalars_");
+    InitializeObject(v, da);
+    data->SetScalars(da);
+    da->UnRegister(0);
+    }
+  if(v = (*subDir)["Vectors_"])
+    {
+    vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
+    da->SetName("Vectors_");
+    InitializeObject(v, da);
+    data->SetVectors(da);
+    da->UnRegister(0);
+    }
+  if(v = (*subDir)["Normals_"])
+    {
+    vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
+    da->SetName("Normals_");
+    InitializeObject(v, da);
+    data->SetNormals(da);
+    da->UnRegister(0);
+    }
+  if(v = (*subDir)["TCoords_"])
+    {
+    vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
+    da->SetName("TCoords_");
+    InitializeObject(v, da);
+    data->SetTCoords(da);
+    da->UnRegister(0);
+    }
+  if(v = (*subDir)["Tensors_"])
+    {
+    vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
+    da->SetName("Tensors_");
+    InitializeObject(v, da);
+    data->SetTensors(da);
+    da->UnRegister(0);
+    }
+  if(v = (*subDir)["GlobalIds_"])
+    {
+    vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
+    da->SetName("GlobalIds_");
+    InitializeObject(v, da);
+    data->SetGlobalIds(da);
+    da->UnRegister(0);
+    }
+  if(v = (*subDir)["PedigreeIds_"])
+    {
+    vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
+    da->SetName("PedigreeIds_");
+    InitializeObject(v, da);
+    data->SetPedigreeIds(da);
+    da->UnRegister(0);
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
+  vtkFieldData* data)
+{
+  for(std::map<std::string, const ADIOSVarInfo*>::const_iterator a =
+    subDir->Arrays.begin(); a != subDir->Arrays.end(); ++a)
+    {
+    vtkDataArray *da = vtkDataArray::CreateDataArray(a->second->GetType());
+
+    da->SetName(a->first.c_str());
+    InitializeObject(a->second, da);
+    data->AddArray(da);
+    }
 }

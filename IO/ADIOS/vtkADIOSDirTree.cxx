@@ -13,14 +13,11 @@
 
 =========================================================================*/
 #include <map>
-#include <sstream>
 #include <stdexcept>
 
 #include "vtkADIOSDirTree.h"
 
 //----------------------------------------------------------------------------
-// Description:
-// Helper funciton to Split a string into delimited components
 void vtkADIOSDirTree::Tokenize(const std::string& str,
   std::vector<std::string> &tok, char d)
 {
@@ -31,7 +28,7 @@ void vtkADIOSDirTree::Tokenize(const std::string& str,
     }
 
   size_t posPrev;
-  for(posPrev = -1; str[posPrev+1] != d; ++posPrev); // Ignore leading delims
+  for(posPrev = -1; str[posPrev+1] == d; ++posPrev); // Ignore leading delims
   size_t posCur;
   while((posCur = str.find(d, posPrev+1)) != std::string::npos)
     {
@@ -112,27 +109,15 @@ void vtkADIOSDirTree::BuildDirTree(const ADIOSReader &reader)
 }
 
 //----------------------------------------------------------------------------
-vtkADIOSDirTree* vtkADIOSDirTree::GetDir(const std::string& path,
-  size_t numDrop, bool createPath)
-{
-  std::vector<std::string> pathSplit;
-  Tokenize(path, pathSplit);
-  return this->GetDir(pathSplit, numDrop, createPath);
-}
-
-//----------------------------------------------------------------------------
 vtkADIOSDirTree* vtkADIOSDirTree::GetDir(const std::vector<std::string>& path,
   size_t numDrop, bool createPath)
 {
   typedef std::map<std::string, vtkADIOSDirTree> SubDirMap;
   
-  std::stringstream ss;
-  ss << '/';
   vtkADIOSDirTree* curTree = this;
   for(size_t i = 0; i < path.size() - numDrop; ++i)
     {
     const std::string &name = path[i];
-    ss << name << '/';
     SubDirMap::iterator subDir = curTree->SubDirs.find(name);
     if(subDir == curTree->SubDirs.end())
       {
@@ -146,4 +131,41 @@ vtkADIOSDirTree* vtkADIOSDirTree::GetDir(const std::vector<std::string>& path,
     curTree = &subDir->second;
     }
   return curTree;
+}
+
+//----------------------------------------------------------------------------
+const vtkADIOSDirTree* vtkADIOSDirTree::GetDir(
+  const std::vector<std::string>& path, size_t numDrop) const
+{
+  typedef std::map<std::string, vtkADIOSDirTree> SubDirMap;
+  
+  const vtkADIOSDirTree* curTree = this;
+  for(size_t i = 0; i < path.size() - numDrop; ++i)
+    {
+    const std::string &name = path[i];
+    SubDirMap::const_iterator subDir = curTree->SubDirs.find(name);
+    if(subDir == curTree->SubDirs.end())
+      {
+      return NULL;
+      }
+    curTree = &subDir->second;
+    }
+  return curTree;
+}
+
+//----------------------------------------------------------------------------
+const ADIOSVarInfo* vtkADIOSDirTree::operator[](
+  const std::string& varName) const
+{
+  std::map<std::string, const ADIOSVarInfo*>::const_iterator i;
+
+  if((i = this->Scalars.find(varName)) != this->Scalars.end())
+    {
+    return i->second;
+    }
+  if((i = this->Arrays.find(varName)) != this->Arrays.end())
+    {
+    return i->second;
+    }
+  return NULL;
 }
