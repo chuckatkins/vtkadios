@@ -20,15 +20,22 @@
 #define __vtkADIOSReader_h
 
 #include <string>
+#include <vector>
+#include <map>
+
+#include <vtkObject.h>
 
 #include "vtkIOADIOSModule.h" // For export macro
+#include "vtkADIOSDirTree.h"
+#include "ADIOSVarInfo.h"
 #include "ADIOSReader.h"
-#include <vtkObject.h>
 
 class vtkDataArray;
 class vtkFieldData;
 class vtkImageData;
 class vtkPolyData;
+
+//----------------------------------------------------------------------------
 
 class VTKIOADIOS_EXPORT vtkADIOSReader : public vtkObject
 {
@@ -55,22 +62,21 @@ public:
   virtual void Read();
 
   // Description:
-  // Initialize a VTK object with it's scalar values and allocate any arrays
-  // needing to be filled
-  void InitializeObject(const std::string& path, vtkDataArray* data);
-  void InitializeObject(const std::string& path, vtkFieldData* data);
-  void InitializeObject(const std::string& path, vtkImageData* data);
-  void InitializeObject(const std::string& path, vtkPolyData* data);
-  
+  // Create a VTK object with it's scalar values and allocate any arrays
+  // needing to be filled later
+  template<typename T>
+  T* CreateObject(const std::string& path);
 
 protected:
-  
+
+  // Description:
+  // Initialize a pre-allocated object with it's appropriate scalars
+  static void InitializeObject(const ADIOSVarInfo* info, vtkDataArray* data);
+
 
   std::string FileName;
+  vtkADIOSDirTree Tree;
   ADIOSReader Reader;
-
-  struct vtkADIOSReaderImpl;
-  vtkADIOSReaderImpl *Impl;
 
   vtkADIOSReader();
   ~vtkADIOSReader();
@@ -79,5 +85,11 @@ private:
   vtkADIOSReader(const vtkADIOSReader&);  // Not implemented.
   void operator=(const vtkADIOSReader&);  // Not implemented.
 };
+
+#define DECLARE_EXPLICIT(T) \
+template<> T* vtkADIOSReader::CreateObject<T>(const std::string& path);
+DECLARE_EXPLICIT(vtkDataArray)
+DECLARE_EXPLICIT(vtkImageData)
+#undef DECLARE_EXPLICIT
 
 #endif

@@ -8,6 +8,7 @@
 #include <vtkXMLImageDataReader.h>
 #include <vtkStructuredPointsWriter.h>
 #include <vtkTIFFWriter.h>
+#include <vtkDataArray.h>
 
 #include "IO/ADIOS/vtkADIOSReader.h"
 #include "IO/ADIOS/ADIOSReader.h"
@@ -44,8 +45,11 @@ vtkSmartPointer<vtkImageData> readADIOSImage(const std::string &filename)
   vtkNew<vtkADIOSReader> reader;
   reader->SetFileName(filename);
   reader->Read();
-
   reader->PrintSelf(std::cout, vtkIndent(1));
+
+  vtkSmartPointer<vtkDataArray> data(
+    reader->CreateObject<vtkDataArray>("/vtkDataSet/PointData/Scalars_"));
+  data->PrintSelf(std::cout, vtkIndent(1));
 
   return NULL;
 }

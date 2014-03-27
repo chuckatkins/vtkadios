@@ -44,8 +44,10 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkDataArray* v)
   vtkLookupTable *lut = valueTmp->GetLookupTable();
   if(lut)
     {
+/*
     this->Define(path+"/LookupTable", static_cast<vtkAbstractArray*>(lut->GetTable()));
     this->Define(path+"/Values", static_cast<vtkAbstractArray*>(valueTmp));
+*/
     }
   else
     {
