@@ -72,12 +72,14 @@ public:
 
   // Description:
   // Open an ADIOS file and build the directory structure
-  // TODO: MAKE PROTECTED LATER
+  // TODO: Make protected so it's only called by the implemented Read methoda
+  // in a concrete child class
   void OpenAndReadMetadata(void);
 
   // Description:
   // Wait for all scheduled array reads to finish
-  // TODO:  protected later
+  // TODO: Make protected so it's only called by the implemented Read methoda
+  // in a concrete child class
   void WaitForReads(void);
 
 protected:
@@ -88,10 +90,10 @@ protected:
   // structures and vtk objects are properly formed.  Arrays will be scheduled
   // for reading afterwards
   void ReadObject(const ADIOSVarInfo* info, vtkDataArray* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkImageData* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSet* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSetAttributes* data);
   void ReadObject(const vtkADIOSDirTree *dir, vtkFieldData* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSetAttributes* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSet* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkImageData* data);
 
   std::string FileName;
   vtkADIOSDirTree Tree;

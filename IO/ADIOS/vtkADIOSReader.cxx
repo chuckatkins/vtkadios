@@ -110,44 +110,16 @@ void vtkADIOSReader::ReadObject(const ADIOSVarInfo* info,
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkImageData* data)
+  vtkFieldData* data)
 {
-  data->SetOrigin(
-    (*subDir)["OriginX"]->GetValue<double>(),
-    (*subDir)["OriginY"]->GetValue<double>(),
-    (*subDir)["OriginZ"]->GetValue<double>());
-  data->SetSpacing(
-    (*subDir)["SpacingX"]->GetValue<double>(),
-    (*subDir)["SpacingY"]->GetValue<double>(),
-    (*subDir)["SpacingZ"]->GetValue<double>());
-  data->SetExtent(
-    (*subDir)["ExtentXMin"]->GetValue<int>(),
-    (*subDir)["ExtentXMax"]->GetValue<int>(),
-    (*subDir)["ExtentYMin"]->GetValue<int>(),
-    (*subDir)["ExtentYMax"]->GetValue<int>(),
-    (*subDir)["ExtentZMin"]->GetValue<int>(),
-    (*subDir)["ExtentZMax"]->GetValue<int>());
+  for(std::map<std::string, const ADIOSVarInfo*>::const_iterator a =
+    subDir->Arrays.begin(); a != subDir->Arrays.end(); ++a)
+    {
+    vtkDataArray *da = vtkDataArray::CreateDataArray(a->second->GetType());
 
-  this->ReadObject(subDir->GetDir("vtkDataSet"),
-    static_cast<vtkDataSet*>(data));
-}
-//----------------------------------------------------------------------------
-void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkDataSet* data)
-{
-  const vtkADIOSDirTree *d;
-
-  if(d = subDir->GetDir("FieldData"))
-    {
-    this->ReadObject(d, data->GetFieldData());
-    }
-  if(d = subDir->GetDir("CellData"))
-    {
-    this->ReadObject(d, data->GetCellData());
-    }
-  if(d = subDir->GetDir("PointData"))
-    {
-    this->ReadObject(d, data->GetPointData());
+    da->SetName(a->first.c_str());
+    this->ReadObject(a->second, da);
+    data->AddArray(da);
     }
 }
 
@@ -217,15 +189,44 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkFieldData* data)
+  vtkDataSet* data)
 {
-  for(std::map<std::string, const ADIOSVarInfo*>::const_iterator a =
-    subDir->Arrays.begin(); a != subDir->Arrays.end(); ++a)
-    {
-    vtkDataArray *da = vtkDataArray::CreateDataArray(a->second->GetType());
+  const vtkADIOSDirTree *d;
 
-    da->SetName(a->first.c_str());
-    this->ReadObject(a->second, da);
-    data->AddArray(da);
+  if(d = subDir->GetDir("FieldData"))
+    {
+    this->ReadObject(d, data->GetFieldData());
     }
+  if(d = subDir->GetDir("CellData"))
+    {
+    this->ReadObject(d, data->GetCellData());
+    }
+  if(d = subDir->GetDir("PointData"))
+    {
+    this->ReadObject(d, data->GetPointData());
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
+  vtkImageData* data)
+{
+  data->SetOrigin(
+    (*subDir)["OriginX"]->GetValue<double>(),
+    (*subDir)["OriginY"]->GetValue<double>(),
+    (*subDir)["OriginZ"]->GetValue<double>());
+  data->SetSpacing(
+    (*subDir)["SpacingX"]->GetValue<double>(),
+    (*subDir)["SpacingY"]->GetValue<double>(),
+    (*subDir)["SpacingZ"]->GetValue<double>());
+  data->SetExtent(
+    (*subDir)["ExtentXMin"]->GetValue<int>(),
+    (*subDir)["ExtentXMax"]->GetValue<int>(),
+    (*subDir)["ExtentYMin"]->GetValue<int>(),
+    (*subDir)["ExtentYMax"]->GetValue<int>(),
+    (*subDir)["ExtentZMin"]->GetValue<int>(),
+    (*subDir)["ExtentZMax"]->GetValue<int>());
+
+  this->ReadObject(subDir->GetDir("vtkDataSet"),
+    static_cast<vtkDataSet*>(data));
 }
