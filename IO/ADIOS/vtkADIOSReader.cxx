@@ -25,6 +25,19 @@
 #include <vtkCellData.h>
 #include <vtkPointData.h>
 #include <vtkImageData.h>
+#include <vtkPolyData.h>
+
+#define TEST_OBJECT_TYPE(subDir, objType) \
+  if(!subDir) \
+    { \
+    return NULL; \
+    } \
+ \
+  const ADIOSVarInfo *v = (*subDir)["vtkDataObjectType"]; \
+  if(!(v && v->IsScalar() && v->GetValue<vtkTypeUInt8>() == objType)) \
+    { \
+    return NULL; \
+    }
 
 //----------------------------------------------------------------------------
 typedef std::map<std::string, vtkADIOSDirTree> SubDirMap;
@@ -72,21 +85,29 @@ vtkImageData* vtkADIOSReader::ReadObject<vtkImageData>(
   const std::string& path)
 {
   vtkADIOSDirTree *subDir = this->Tree.GetDir(path);
-  if(!subDir)
-    {
-    return NULL;
-    }
-
-  const ADIOSVarInfo *v = (*subDir)["vtkDataObjectType"];
-  if(!(v && v->IsScalar() && v->GetValue<vtkTypeUInt8>() == VTK_IMAGE_DATA))
-    {
-    return NULL;
-    }
+  TEST_OBJECT_TYPE(subDir, VTK_IMAGE_DATA)
 
   // Avoid excessive validation and assume that if we have a vtkDataObjectField
   // then the remainder of the subdirectory will be in proper form
 
   vtkImageData *data = vtkImageData::New();
+  this->ReadObject(subDir, data);
+
+  return data;
+}
+
+//----------------------------------------------------------------------------
+template<>
+vtkPolyData* vtkADIOSReader::ReadObject<vtkPolyData>(
+  const std::string& path)
+{
+  vtkADIOSDirTree *subDir = this->Tree.GetDir(path);
+  TEST_OBJECT_TYPE(subDir, VTK_POLY_DATA)
+
+  // Avoid excessive validation and assume that if we have a vtkDataObjectField
+  // then the remainder of the subdirectory will be in proper form
+
+  vtkPolyData *data = vtkPolyData::New();
   this->ReadObject(subDir, data);
 
   return data;
@@ -230,3 +251,14 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
   this->ReadObject(subDir->GetDir("vtkDataSet"),
     static_cast<vtkDataSet*>(data));
 }
+
+//----------------------------------------------------------------------------
+void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
+  vtkPolyData* data)
+{
+}
+
+
+//----------------------------------------------------------------------------
+//Cleanup
+#undef TEST_OBJECT_TYPE

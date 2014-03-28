@@ -55,6 +55,11 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkFieldData* v)
   for(size_t i = 0; i < valueTmp->GetNumberOfArrays(); ++i)
     {
     vtkDataArray *array = valueTmp->GetArray(i);
+    if(!array) // Currently string arrays are not supported
+      {
+      continue;
+      }
+
     std::string name = array->GetName();
     if(name.empty()) // skip unnamed arrays
       {

@@ -94,6 +94,7 @@ protected:
   void ReadObject(const vtkADIOSDirTree *dir, vtkDataSetAttributes* data);
   void ReadObject(const vtkADIOSDirTree *dir, vtkDataSet* data);
   void ReadObject(const vtkADIOSDirTree *dir, vtkImageData* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkPolyData* data);
 
   std::string FileName;
   vtkADIOSDirTree Tree;
@@ -110,6 +111,7 @@ private:
 #define DECLARE_EXPLICIT(T) \
 template<> T* vtkADIOSReader::ReadObject<T>(const std::string& path);
 DECLARE_EXPLICIT(vtkImageData)
+DECLARE_EXPLICIT(vtkPolyData)
 #undef DECLARE_EXPLICIT
 
 #endif

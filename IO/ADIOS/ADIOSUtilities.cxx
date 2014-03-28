@@ -51,6 +51,15 @@ ADIOS_DATATYPES ADIOSUtilities::TypeVTKToADIOS(int tv)
     case VTK_FLOAT: return adios_real;
     case VTK_DOUBLE: return adios_double;
     case VTK_STRING: return adios_string;
+    case VTK_ID_TYPE:
+      switch(sizeof(vtkIdType))
+        {
+        case 1: return adios_byte;
+        case 2: return adios_short;
+        case 4: return adios_integer;
+        case 8: return adios_long;
+        default: return adios_unknown;
+        }
     default: return adios_unknown;
     }
 }
