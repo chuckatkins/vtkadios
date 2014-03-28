@@ -27,5 +27,5 @@ target_link_libraries(ADIOSDumpImage ${VTK_LIBRARIES} vtkADIOSIO)
 add_executable(ADIOSWritePoly ADIOSWritePoly.cxx)
 target_link_libraries(ADIOSWritePoly ${VTK_LIBRARIES} vtkADIOSIO)
 
-#add_executable(ADIOSDumpImage ADIOSDumpImage.cxx)
-#target_link_libraries(ADIOSDumpImage ${VTK_LIBRARIES} vtkADIOSIO)
+add_executable(ADIOSDumpPoly ADIOSDumpPoly.cxx)
+target_link_libraries(ADIOSDumpPoly ${VTK_LIBRARIES} vtkADIOSIO)

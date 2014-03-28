@@ -14,15 +14,17 @@
 =========================================================================*/
 #include "vtkADIOSWriter.h"
 #include <vtkAbstractArray.h>
+#include <vtkDataArray.h>
+#include <vtkCellArray.h>
+#include <vtkPoints.h>
 #include <vtkFieldData.h>
 #include <vtkCellData.h>
 #include <vtkPointData.h>
-#include <vtkDataArray.h>
 #include <vtkLookupTable.h>
 #include <vtkDataSet.h>
 #include <vtkImageData.h>
-#include <vtkCellArray.h>
 #include <vtkPolyData.h>
+
 //----------------------------------------------------------------------------
 void vtkADIOSWriter::Write(const std::string& path, const vtkAbstractArray* v)
 {
@@ -52,6 +54,15 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkDataArray* v)
     {
     this->Write(path, static_cast<vtkAbstractArray*>(valueTmp));
     }
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSWriter::Write(const std::string& path, const vtkCellArray* v)
+{
+  vtkCellArray* valueTmp = const_cast<vtkCellArray*>(v);
+  this->Writer.WriteScalar<vtkIdType>(path+"/NumberOfCells",
+    valueTmp->GetNumberOfCells());
+  this->Write(path+"/Ia", valueTmp->GetData());
 }
 
 //----------------------------------------------------------------------------
@@ -114,24 +125,15 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkPolyData* v)
 
   vtkPolyData* valueTmp = const_cast<vtkPolyData*>(v);
   this->Writer.WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType", VTK_POLY_DATA);
-  if(valueTmp->GetPoints())
+
+  vtkPoints *p;
+  if(p = valueTmp->GetPoints())
     {
-    this->Write(path+"/Points", valueTmp->GetPoints()->GetData());
+    this->Write(path+"/Points", p->GetData());
     }
-  if(valueTmp->GetVerts())
-    {
-    this->Write(path+"/Verticies", valueTmp->GetVerts()->GetData());
-    }
-  if(valueTmp->GetLines())
-    {
-    this->Write(path+"/Lines", valueTmp->GetLines()->GetData());
-    }
-  if(valueTmp->GetPolys())
-    {
-    this->Write(path+"/Polygons", valueTmp->GetPolys()->GetData());
-    }
-  if(valueTmp->GetStrips())
-    {
-    this->Write(path+"/Strips", valueTmp->GetStrips()->GetData());
-    }  
+
+  this->Write(path+"/Verticies", valueTmp->GetVerts());
+  this->Write(path+"/Lines", valueTmp->GetLines());
+  this->Write(path+"/Polygons", valueTmp->GetPolys());
+  this->Write(path+"/Strips", valueTmp->GetStrips());
 }

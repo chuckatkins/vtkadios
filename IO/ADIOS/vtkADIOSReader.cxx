@@ -21,6 +21,8 @@
 #include <vtkObjectFactory.h>
 #include <vtkType.h>
 #include <vtkDataArray.h>
+#include <vtkCellArray.h>
+#include <vtkPoints.h>
 #include <vtkFieldData.h>
 #include <vtkCellData.h>
 #include <vtkPointData.h>
@@ -126,7 +128,20 @@ void vtkADIOSReader::ReadObject(const ADIOSVarInfo* info,
 
   data->SetNumberOfComponents(dims[0]);
   data->SetNumberOfTuples(dims[1]);
-  this->Reader.ScheduleReadArray(info->GetId(), data->GetVoidPointer(0));
+
+  // Only queue the read if there's data to be read
+  if(dims[0] != 0 && dims[1] != 0)
+    {
+    this->Reader.ScheduleReadArray(info->GetId(), data->GetVoidPointer(0));
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
+  vtkCellArray* data)
+{
+  data->SetNumberOfCells((*subDir)["NumberOfCells"]->GetValue<vtkIdType>());
+  this->ReadObject((*subDir)["Ia"], data->GetData());
 }
 
 //----------------------------------------------------------------------------
@@ -256,6 +271,42 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
   vtkPolyData* data)
 {
+  const ADIOSVarInfo *v;
+  if(v = (*subDir)["Points"])
+    {
+    vtkPoints *p = vtkPoints::New();
+    this->ReadObject(v, p->GetData());
+    data->SetPoints(p);
+    }
+
+  const vtkADIOSDirTree *d;
+  if(d = subDir->GetDir("Verticies"))
+    {
+    vtkCellArray *cells = vtkCellArray::New();
+    this->ReadObject(d, cells);
+    data->SetVerts(cells);
+    }
+  if(d = subDir->GetDir("Lines"))
+    {
+    vtkCellArray *cells = vtkCellArray::New();
+    this->ReadObject(d, cells);
+    data->SetLines(cells);
+    }
+  if(d = subDir->GetDir("Polygons"))
+    {
+    vtkCellArray *cells = vtkCellArray::New();
+    this->ReadObject(d, cells);
+    data->SetPolys(cells);
+    }
+  if(d = subDir->GetDir("Strips"))
+    {
+    vtkCellArray *cells = vtkCellArray::New();
+    this->ReadObject(d, cells);
+    data->SetStrips(cells);
+    }
+
+  this->ReadObject(subDir->GetDir("vtkDataSet"),
+    static_cast<vtkDataSet*>(data));
 }
 
 

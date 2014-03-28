@@ -27,6 +27,7 @@
 
 class vtkAbstractArray;
 class vtkDataArray;
+class vtkCellArray;
 class vtkFieldData;
 class vtkDataSet;
 class vtkImageData;
@@ -56,6 +57,7 @@ public:
   // Define a VTK data type
   void Define(const std::string& path, const vtkAbstractArray* value);
   void Define(const std::string& path, const vtkDataArray* value);
+  void Define(const std::string& path, const vtkCellArray* value);
   void Define(const std::string& path, const vtkFieldData* value);
   void Define(const std::string& path, const vtkDataSet* value);
   void Define(const std::string& path, const vtkImageData* value);
@@ -69,6 +71,7 @@ public:
   // Write a previously defined VTK data type
   void Write(const std::string& path, const vtkAbstractArray* value);
   void Write(const std::string& path, const vtkDataArray* value);
+  void Write(const std::string& path, const vtkCellArray* value);
   void Write(const std::string& path, const vtkFieldData* value);
   void Write(const std::string& path, const vtkDataSet* value);
   void Write(const std::string& path, const vtkImageData* value);

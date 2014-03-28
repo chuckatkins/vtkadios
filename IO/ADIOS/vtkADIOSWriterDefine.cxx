@@ -17,12 +17,13 @@
 #include <vtkAbstractArray.h>
 #include <vtkLookupTable.h>
 #include <vtkDataArray.h>
+#include <vtkCellArray.h>
+#include <vtkPoints.h>
 #include <vtkFieldData.h>
 #include <vtkCellData.h>
 #include <vtkPointData.h>
 #include <vtkDataSet.h>
 #include <vtkImageData.h>
-#include <vtkCellArray.h>
 #include <vtkPolyData.h>
 
 //----------------------------------------------------------------------------
@@ -59,6 +60,14 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkDataArray* v)
     {
     this->Define(path, static_cast<vtkAbstractArray*>(valueTmp));
     }
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSWriter::Define(const std::string& path, const vtkCellArray* v)
+{
+  vtkCellArray *valueTmp = const_cast<vtkCellArray*>(v);
+  this->Writer.DefineScalar<vtkIdType>(path+"/NumberOfCells");
+  this->Define(path+"/Ia", valueTmp->GetData());
 }
 
 //----------------------------------------------------------------------------
@@ -122,21 +131,8 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkPolyData* v)
     this->Define(path+"/Points", p->GetData());
     }
 
-  vtkCellArray *ca;
-  if(ca = valueTmp->GetVerts())
-    {
-    this->Define(path+"/Verticies", ca->GetData());
-    }
-  if(ca = valueTmp->GetLines())
-    {
-    this->Define(path+"/Lines", ca->GetData());
-    }
-  if(ca = valueTmp->GetPolys())
-    {
-    this->Define(path+"/Polygons", ca->GetData());
-    }
-  if(ca = valueTmp->GetStrips())
-    {
-    this->Define(path+"/Strips", ca->GetData());
-    }
+  this->Define(path+"/Verticies", valueTmp->GetVerts());
+  this->Define(path+"/Lines", valueTmp->GetLines());
+  this->Define(path+"/Polygons", valueTmp->GetPolys());
+  this->Define(path+"/Strips", valueTmp->GetStrips());
 }

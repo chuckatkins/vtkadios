@@ -31,10 +31,11 @@
 #include "ADIOSReader.h"
 
 class vtkDataArray;
-class vtkImageData;
-class vtkDataSet;
-class vtkDataSetAttributes;
+class vtkCellArray;
 class vtkFieldData;
+class vtkDataSetAttributes;
+class vtkDataSet;
+class vtkImageData;
 class vtkPolyData;
 
 //----------------------------------------------------------------------------
@@ -90,6 +91,7 @@ protected:
   // structures and vtk objects are properly formed.  Arrays will be scheduled
   // for reading afterwards
   void ReadObject(const ADIOSVarInfo* info, vtkDataArray* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkCellArray* data);
   void ReadObject(const vtkADIOSDirTree *dir, vtkFieldData* data);
   void ReadObject(const vtkADIOSDirTree *dir, vtkDataSetAttributes* data);
   void ReadObject(const vtkADIOSDirTree *dir, vtkDataSet* data);

@@ -104,8 +104,11 @@ std::string ADIOSVarInfo::GetValue<std::string>(void) const
 template int8_t ADIOSVarInfo::GetValue<int8_t>(void) const;
 template int16_t ADIOSVarInfo::GetValue<int16_t>(void) const;
 template int32_t ADIOSVarInfo::GetValue<int32_t>(void) const;
+template int64_t ADIOSVarInfo::GetValue<int64_t>(void) const;
 template uint8_t ADIOSVarInfo::GetValue<uint8_t>(void) const;
 template uint16_t ADIOSVarInfo::GetValue<uint16_t>(void) const;
 template uint32_t ADIOSVarInfo::GetValue<uint32_t>(void) const;
+template uint64_t ADIOSVarInfo::GetValue<uint64_t>(void) const;
+template vtkIdType ADIOSVarInfo::GetValue<vtkIdType>(void) const;
 template float ADIOSVarInfo::GetValue<float>(void) const;
 template double ADIOSVarInfo::GetValue<double>(void) const;
