@@ -62,7 +62,7 @@ void vtkADIOSReader::Read(void)
 
 //----------------------------------------------------------------------------
 template<>
-vtkImageData* vtkADIOSReader::CreateObject<vtkImageData>(
+vtkImageData* vtkADIOSReader::ReadObject<vtkImageData>(
   const std::string& path)
 {
   vtkADIOSDirTree *subDir = this->Tree.GetDir(path);
@@ -81,13 +81,13 @@ vtkImageData* vtkADIOSReader::CreateObject<vtkImageData>(
   // then the remainder of the subdirectory will be in proper form
 
   vtkImageData *data = vtkImageData::New();
-  InitializeObject(subDir, data);
+  this->ReadObject(subDir, data);
 
   return data;
 }
 
 //----------------------------------------------------------------------------
-void vtkADIOSReader::InitializeObject(const ADIOSVarInfo* info,
+void vtkADIOSReader::ReadObject(const ADIOSVarInfo* info,
   vtkDataArray* data)
 {
   std::vector<size_t> dims;
@@ -99,10 +99,11 @@ void vtkADIOSReader::InitializeObject(const ADIOSVarInfo* info,
 
   data->SetNumberOfComponents(dims[0]);
   data->SetNumberOfTuples(dims[1]);
+  this->Reader.ScheduleReadArray(info->GetId(), data->GetVoidPointer(0));
 }
 
 //----------------------------------------------------------------------------
-void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
+void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
   vtkImageData* data)
 {
   data->SetOrigin(
@@ -121,31 +122,31 @@ void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
     (*subDir)["ExtentZMin"]->GetValue<int>(),
     (*subDir)["ExtentZMax"]->GetValue<int>());
 
-  InitializeObject(subDir->GetDir("vtkDataSet"),
+  this->ReadObject(subDir->GetDir("vtkDataSet"),
     static_cast<vtkDataSet*>(data));
 }
 //----------------------------------------------------------------------------
-void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
+void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
   vtkDataSet* data)
 {
   const vtkADIOSDirTree *d;
 
   if(d = subDir->GetDir("FieldData"))
     {
-    InitializeObject(d, data->GetFieldData());
+    this->ReadObject(d, data->GetFieldData());
     }
   if(d = subDir->GetDir("CellData"))
     {
-    InitializeObject(d, data->GetCellData());
+    this->ReadObject(d, data->GetCellData());
     }
   if(d = subDir->GetDir("PointData"))
     {
-    InitializeObject(d, data->GetPointData());
+    this->ReadObject(d, data->GetPointData());
     }
 }
 
 //----------------------------------------------------------------------------
-void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
+void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
   vtkDataSetAttributes* data)
 {
   const ADIOSVarInfo *v;
@@ -154,7 +155,7 @@ void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("Scalars_");
-    InitializeObject(v, da);
+    this->ReadObject(v, da);
     data->SetScalars(da);
     da->UnRegister(0);
     }
@@ -162,7 +163,7 @@ void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("Vectors_");
-    InitializeObject(v, da);
+    this->ReadObject(v, da);
     data->SetVectors(da);
     da->UnRegister(0);
     }
@@ -170,7 +171,7 @@ void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("Normals_");
-    InitializeObject(v, da);
+    this->ReadObject(v, da);
     data->SetNormals(da);
     da->UnRegister(0);
     }
@@ -178,7 +179,7 @@ void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("TCoords_");
-    InitializeObject(v, da);
+    this->ReadObject(v, da);
     data->SetTCoords(da);
     da->UnRegister(0);
     }
@@ -186,7 +187,7 @@ void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("Tensors_");
-    InitializeObject(v, da);
+    this->ReadObject(v, da);
     data->SetTensors(da);
     da->UnRegister(0);
     }
@@ -194,7 +195,7 @@ void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("GlobalIds_");
-    InitializeObject(v, da);
+    this->ReadObject(v, da);
     data->SetGlobalIds(da);
     da->UnRegister(0);
     }
@@ -202,14 +203,14 @@ void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("PedigreeIds_");
-    InitializeObject(v, da);
+    this->ReadObject(v, da);
     data->SetPedigreeIds(da);
     da->UnRegister(0);
     }
 }
 
 //----------------------------------------------------------------------------
-void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
+void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
   vtkFieldData* data)
 {
   for(std::map<std::string, const ADIOSVarInfo*>::const_iterator a =
@@ -218,7 +219,7 @@ void vtkADIOSReader::InitializeObject(const vtkADIOSDirTree *subDir,
     vtkDataArray *da = vtkDataArray::CreateDataArray(a->second->GetType());
 
     da->SetName(a->first.c_str());
-    InitializeObject(a->second, da);
+    this->ReadObject(a->second, da);
     data->AddArray(da);
     }
 }

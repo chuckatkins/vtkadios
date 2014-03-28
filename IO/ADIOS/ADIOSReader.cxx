@@ -127,8 +127,8 @@ void ADIOSReader::ScheduleReadArray(int id, T *data)
 //----------------------------------------------------------------------------
 // Instantiations for the ScheduleReadArray implementation
 #define INSTANTIATE(T) \
-template<> void ADIOSReader::ScheduleReadArray<T>(const std::string&, T*); \
-template<> void ADIOSReader::ScheduleReadArray<T>(int, T*);
+template void ADIOSReader::ScheduleReadArray<T>(const std::string&, T*); \
+template void ADIOSReader::ScheduleReadArray<T>(int, T*);
 INSTANTIATE(int8_t)
 INSTANTIATE(int16_t)
 INSTANTIATE(int32_t)
@@ -140,6 +140,7 @@ INSTANTIATE(uint64_t)
 INSTANTIATE(float)
 INSTANTIATE(double)
 INSTANTIATE(long double)
+INSTANTIATE(void)
 #undef INSTANTIATE
 
 //----------------------------------------------------------------------------

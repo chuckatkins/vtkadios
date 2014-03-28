@@ -64,24 +64,23 @@ public:
   virtual void Read();
 
   // Description:
-  // Create a VTK object with it's scalar values and allocate any arrays
-  // needing to be filled later
+  // Create a VTK object with it's scalar values and allocate any arrays, and
+  // schedule them for reading
   template<typename T>
-  T* CreateObject(const std::string& path);
+  T* ReadObject(const std::string& path);
 
 protected:
 
   // Description:
   // Initialize a pre-allocated object with it's appropriate scalars.  These
   // methods do not perform any validation and assume that the provides ADIOS
-  // structures and vtk objects are properly formed
-  static void InitializeObject(const ADIOSVarInfo* info, vtkDataArray* data);
-  static void InitializeObject(const vtkADIOSDirTree *dir, vtkImageData* data);
-  static void InitializeObject(const vtkADIOSDirTree *dir, vtkDataSet* data);
-  static void InitializeObject(const vtkADIOSDirTree *dir,
-    vtkDataSetAttributes* data);
-  static void InitializeObject(const vtkADIOSDirTree *dir, vtkFieldData* data);
-
+  // structures and vtk objects are properly formed.  Arrays will be scheduled
+  // for reading afterwards
+  void ReadObject(const ADIOSVarInfo* info, vtkDataArray* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkImageData* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSet* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSetAttributes* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkFieldData* data);
 
   std::string FileName;
   vtkADIOSDirTree Tree;
@@ -96,7 +95,7 @@ private:
 };
 
 #define DECLARE_EXPLICIT(T) \
-template<> T* vtkADIOSReader::CreateObject<T>(const std::string& path);
+template<> T* vtkADIOSReader::ReadObject<T>(const std::string& path);
 DECLARE_EXPLICIT(vtkImageData)
 #undef DECLARE_EXPLICIT
 
