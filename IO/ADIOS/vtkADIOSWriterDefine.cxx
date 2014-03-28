@@ -30,6 +30,12 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkAbstractArray* v)
 {
   vtkAbstractArray* valueTmp = const_cast<vtkAbstractArray*>(v);
 
+  // String arrays not currently supported
+  if(valueTmp->GetDataType() == VTK_STRING)
+    {
+    return;
+    }
+
   std::vector<size_t> dims;
   dims.push_back(valueTmp->GetNumberOfComponents());
   dims.push_back(valueTmp->GetNumberOfTuples());
@@ -61,18 +67,15 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkFieldData* v)
   vtkFieldData* valueTmp = const_cast<vtkFieldData*>(v);
   for(size_t i = 0; i < valueTmp->GetNumberOfArrays(); ++i)
     {
-    vtkDataArray *array = valueTmp->GetArray(i);
-    if(!array) // Currently string arrays are not supported
-      {
-      continue;
-      }
+    vtkDataArray *da = valueTmp->GetArray(i);
+    vtkAbstractArray *aa = da ? da : valueTmp->GetAbstractArray(i);
 
-    std::string name = array->GetName();
-    if(name.empty()) // skip unna med arrays
+    std::string name = aa->GetName();
+    if(name.empty()) // skip unnamed arrays
       {
       continue;
       }
-    this->Define(path+"/"+name, array);
+    this->Define(path+"/"+name, da ? da : aa);
     }
 }
 
@@ -112,24 +115,28 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkPolyData* v)
 
   vtkPolyData *valueTmp = const_cast<vtkPolyData*>(v);
   this->Writer.DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
-  if(valueTmp->GetPoints())
+
+  vtkPoints *p;
+  if(p = valueTmp->GetPoints())
     {
-    this->Define(path+"/Points", valueTmp->GetPoints()->GetData());
+    this->Define(path+"/Points", p->GetData());
     }
-  if(valueTmp->GetVerts())
+
+  vtkCellArray *ca;
+  if(ca = valueTmp->GetVerts())
     {
-    this->Define(path+"/Verticies", valueTmp->GetVerts()->GetData());
+    this->Define(path+"/Verticies", ca->GetData());
     }
-  if(valueTmp->GetLines())
+  if(ca = valueTmp->GetLines())
     {
-    this->Define(path+"/Lines", valueTmp->GetLines()->GetData());
+    this->Define(path+"/Lines", ca->GetData());
     }
-  if(valueTmp->GetPolys())
+  if(ca = valueTmp->GetPolys())
     {
-    this->Define(path+"/Polygons", valueTmp->GetPolys()->GetData());
+    this->Define(path+"/Polygons", ca->GetData());
     }
-  if(valueTmp->GetStrips())
+  if(ca = valueTmp->GetStrips())
     {
-    this->Define(path+"/Strips", valueTmp->GetStrips()->GetData());
+    this->Define(path+"/Strips", ca->GetData());
     }
 }

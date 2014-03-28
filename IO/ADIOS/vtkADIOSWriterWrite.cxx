@@ -28,6 +28,12 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkAbstractArray* v)
 {
   vtkAbstractArray* valueTmp = const_cast<vtkAbstractArray*>(v);
 
+  // String arryas not currently supported
+  if(valueTmp->GetDataType() == VTK_STRING)
+    {
+    return;
+    }
+
   this->Writer.WriteArray(path, valueTmp->GetVoidPointer(0));
 }
 
@@ -54,18 +60,15 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkFieldData* v)
   vtkFieldData* valueTmp = const_cast<vtkFieldData*>(v);
   for(size_t i = 0; i < valueTmp->GetNumberOfArrays(); ++i)
     {
-    vtkDataArray *array = valueTmp->GetArray(i);
-    if(!array) // Currently string arrays are not supported
-      {
-      continue;
-      }
+    vtkDataArray *da = valueTmp->GetArray(i);
+    vtkAbstractArray *aa = da ? da : valueTmp->GetAbstractArray(i);
 
-    std::string name = array->GetName();
+    std::string name = aa->GetName();
     if(name.empty()) // skip unnamed arrays
       {
       continue;
       }
-    this->Write(path+"/"+name, array);
+    this->Write(path+"/"+name, da ? da : aa);
     }
 }
 

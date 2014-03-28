@@ -99,6 +99,7 @@ size_t ADIOSUtilities::TypeSize(ADIOS_DATATYPES ta)
     case adios_double: return 8;
     case adios_complex: return 8;
     case adios_double_complex: return 16;
+    case adios_string: return 1;
     return 0;
     }
 }
