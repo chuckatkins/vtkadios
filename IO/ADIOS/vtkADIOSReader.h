@@ -61,13 +61,24 @@ public:
   
   // Description:
   // The main interface which triggers the reader to start
-  virtual void Read();
+  // TODO: Make pure virtual and only implement in derived concrete readers
+  //virtual void Read();
 
   // Description:
   // Create a VTK object with it's scalar values and allocate any arrays, and
   // schedule them for reading
   template<typename T>
   T* ReadObject(const std::string& path);
+
+  // Description:
+  // Open an ADIOS file and build the directory structure
+  // TODO: MAKE PROTECTED LATER
+  void OpenAndReadMetadata(void);
+
+  // Description:
+  // Wait for all scheduled array reads to finish
+  // TODO:  protected later
+  void WaitForReads(void);
 
 protected:
 

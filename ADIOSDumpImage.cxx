@@ -44,10 +44,11 @@ vtkSmartPointer<vtkImageData> readADIOSImage(const std::string &filename)
 {
   vtkNew<vtkADIOSReader> reader;
   reader->SetFileName(filename);
-  reader->Read();
+  reader->OpenAndReadMetadata();
   reader->PrintSelf(std::cout, vtkIndent(1));
 
   vtkSmartPointer<vtkImageData> data(reader->ReadObject<vtkImageData>("/"));
+  reader->WaitForReads();
 
   return data;
 }

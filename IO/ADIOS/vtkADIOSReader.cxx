@@ -54,10 +54,16 @@ void vtkADIOSReader::PrintSelf(std::ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-void vtkADIOSReader::Read(void)
+void vtkADIOSReader::OpenAndReadMetadata(void)
 {
   this->Reader.InitializeFile(this->FileName);
   this->Tree.BuildDirTree(this->Reader);
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSReader::WaitForReads(void)
+{
+  this->Reader.ReadArrays();
 }
 
 //----------------------------------------------------------------------------
