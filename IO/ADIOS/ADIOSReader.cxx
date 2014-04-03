@@ -59,7 +59,7 @@ void ADIOSReader::InitializeFile(const std::string &fileName)
   // Make sure we only do this once
   if(this->Impl->File)
     {
-    throw std::runtime_error("ADIOSReader already ahs an open file.");
+    throw std::runtime_error("ADIOSReader already has an open file.");
     }
 
   int err;
@@ -88,6 +88,12 @@ void ADIOSReader::InitializeFile(const std::string &fileName)
         this->Impl->ArrayIds.insert(std::make_pair(name, i));
         }
     }
+}
+
+//----------------------------------------------------------------------------
+bool ADIOSReader::IsOpen(void) const
+{
+  return this->Impl->File;
 }
 
 //----------------------------------------------------------------------------

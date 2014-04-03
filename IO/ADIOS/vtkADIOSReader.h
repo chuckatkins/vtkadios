@@ -23,7 +23,9 @@
 #include <vector>
 #include <map>
 
-#include <vtkObject.h>
+#include <vtkAlgorithm.h>
+#include <vtkSetGet.h>
+#include <vtkSmartPointer.h>
 
 #include "vtkIOADIOSModule.h" // For export macro
 #include "vtkADIOSDirTree.h"
@@ -34,13 +36,14 @@ class vtkDataArray;
 class vtkCellArray;
 class vtkFieldData;
 class vtkDataSetAttributes;
+class vtkDataObject;
 class vtkDataSet;
 class vtkImageData;
 class vtkPolyData;
 
 //----------------------------------------------------------------------------
 
-class VTKIOADIOS_EXPORT vtkADIOSReader : public vtkObject
+class VTKIOADIOS_EXPORT vtkADIOSReader : public vtkAlgorithm
 {
 public:
   static vtkADIOSReader* New();
@@ -50,40 +53,31 @@ public:
   //BTX
   // Description:
   // Get/Set the output filename
-  const std::string& GetFileName() const
-  {
-    return this->FileName;
-  }
-  void SetFileName(const std::string& filename)
-  {
-    this->FileName = filename;
-  }
+  vtkSetMacro(FileName, const std::string&);  
+  vtkGetMacro(FileName, const std::string&);  
   //ETX
   
   // Description:
   // The main interface which triggers the reader to start
   // TODO: Make pure virtual and only implement in derived concrete readers
-  //virtual void Read();
+  virtual int ProcessRequest(vtkInformation*, vtkInformationVector**,
+    vtkInformationVector*);
+
+protected:
+
+  // Description:
+  // Open an ADIOS file and build the directory structure
+  bool OpenAndReadMetadata(void);
+
+  // Description:
+  // Wait for all scheduled array reads to finish
+  void WaitForReads(void);
 
   // Description:
   // Create a VTK object with it's scalar values and allocate any arrays, and
   // schedule them for reading
   template<typename T>
   T* ReadObject(const std::string& path);
-
-  // Description:
-  // Open an ADIOS file and build the directory structure
-  // TODO: Make protected so it's only called by the implemented Read methoda
-  // in a concrete child class
-  void OpenAndReadMetadata(void);
-
-  // Description:
-  // Wait for all scheduled array reads to finish
-  // TODO: Make protected so it's only called by the implemented Read methoda
-  // in a concrete child class
-  void WaitForReads(void);
-
-protected:
 
   // Description:
   // Initialize a pre-allocated object with it's appropriate scalars.  These
@@ -104,6 +98,34 @@ protected:
 
   vtkADIOSReader();
   ~vtkADIOSReader();
+
+protected:
+  // Uset to implement vtkAlgorithm
+
+  virtual int ProcessRequest(vtkInformation *request,
+   vtkInformationVector **input, vtkInformationVector *output);
+
+  virtual bool RequestDataObject(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+  virtual bool RequestInformation(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+  virtual bool RequestData(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+  virtual bool RequestDataNotGenerated(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+  virtual bool RequestRegenerateInformation(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+
+  virtual bool RequestUpdateExtent(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+  virtual bool RequestUpdateTime(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+  virtual bool RequestUpdateTimeDependentInformation(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+
+  
+
+  vtkSmartPointer<vtkDataObject> Output;
 
 private:
   vtkADIOSReader(const vtkADIOSReader&);  // Not implemented.

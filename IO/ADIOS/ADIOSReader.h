@@ -53,6 +53,10 @@ public:
   // Perform all scheduled array read operations
   void ReadArrays(void);
 
+  // Description:
+  // Whether or not the file / stream is already open
+  bool IsOpen(void) const;
+
 protected:
   struct ADIOSReaderImpl;
 
