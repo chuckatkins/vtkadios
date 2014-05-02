@@ -12,19 +12,65 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+#include <cstring>
+#include <limits>
+#include <stdexcept>
+#include <iomanip>
+
+#include "ADIOSWriter.h"
+
 #include "vtkADIOSWriter.h"
 #include <vtkObjectFactory.h>
+#include <vtkInformation.h>
+#include <vtkInformationVector.h>
+#include <vtkDemandDrivenPipeline.h>
+#include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkMPIController.h>
+#include <vtkMPI.h>
 
+#include <vtkDataObject.h>
+#include <vtkAbstractArray.h>
+#include <vtkLookupTable.h>
+#include <vtkDataArray.h>
+#include <vtkCellArray.h>
+#include <vtkPoints.h>
+#include <vtkFieldData.h>
+#include <vtkCellData.h>
+#include <vtkPointData.h>
+#include <vtkDataSet.h>
+#include <vtkImageData.h>
+#include <vtkPolyData.h>
+#include <vtkUnstructuredGrid.h>
+
+
+//----------------------------------------------------------------------------
+const double INVALID_STEP = std::numeric_limits<double>::min();
+
+//----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkADIOSWriter);
 
 //----------------------------------------------------------------------------
 vtkADIOSWriter::vtkADIOSWriter()
+: FileName(""), TransportMethod("POSIX"), TransportArguments(""),
+  Writer(NULL), Controller(NULL),
+  NumberOfPieces(-1), RequestPiece(-1), NumberOfGhostLevels(-1),
+  WriteAllTimeSteps(true), TimeSteps(), CurrentTimeStep(TimeSteps.begin()),
+  vtkAlgorithm()
 {
+  std::memset(this->RequestExtent, 0, 6*sizeof(int));
+  std::memset(this->WholeExtent, 0, 6*sizeof(int));
+  this->SetNumberOfInputPorts(1);
+  this->SetNumberOfOutputPorts(0);
+
+  // Initialize the ADIOS subsystem
+  this->SetController(vtkMPIController::SafeDownCast(
+    vtkMultiProcessController::GetGlobalController()));
 }
 
 //----------------------------------------------------------------------------
 vtkADIOSWriter::~vtkADIOSWriter()
 {
+  delete this->Writer;
 }
 
 //----------------------------------------------------------------------------
@@ -35,7 +81,193 @@ void vtkADIOSWriter::PrintSelf(std::ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-void vtkADIOSWriter::InitializeFile(void)
+void vtkADIOSWriter::SetController(vtkMPIController *controller)
 {
-  this->Writer.InitializeFile(this->FileName);
+  if(!controller)
+    {
+    vtkErrorMacro("ADIOS Writer can only be used with MPI");
+    return;
+    }
+
+  if(this->Writer)
+    {
+    delete this->Writer;
+    }
+  this->Controller = controller;
+  this->Writer = new ADIOSWriter;
+  this->Writer->Initialize(
+    *static_cast<vtkMPICommunicator *>(
+      this->Controller->GetCommunicator())->GetMPIComm()->GetHandle(),
+    this->TransportMethod, this->TransportArguments);
+  this->NumberOfPieces = this->Controller->GetNumberOfProcesses();
+  this->RequestPiece = this->Controller->GetLocalProcessId();
+  this->FirstStep = true;
 }
+
+//----------------------------------------------------------------------------
+void vtkADIOSWriter::OpenFile(void)
+{
+  this->Writer->Open(this->FileName, !this->FirstStep);
+  this->FirstStep = false;
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSWriter::CloseFile(void)
+{
+  this->Writer->Close();
+}
+
+//----------------------------------------------------------------------------
+template<typename T>
+bool vtkADIOSWriter::DefineAndWrite(void)
+{
+  const T *data = T::SafeDownCast(this->Input);
+  if(!data)
+    {
+    return false;
+    }
+
+  try
+    {
+    if(this->FirstStep)
+      {
+      if(this->RequestPiece == 0)
+        {
+        this->Writer->DefineScalar<double>("/TimeStamp");
+        }
+      this->Define("", data);
+      }
+    this->OpenFile();
+    if(this->CurrentTimeStep != this->TimeSteps.end() &&
+       this->RequestPiece == 0)
+      {
+      this->Writer->WriteScalar<double>("/TimeStamp", *this->CurrentTimeStep);
+      }
+    this->Write("", data);
+    this->CloseFile();
+    }
+  catch(const std::runtime_error &err)
+    {
+    vtkErrorMacro(<< err.what());
+    return false;
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkADIOSWriter::Write(void)
+{
+  if(!this->Input)
+    {
+    return false;
+    }
+
+  switch(this->Input->GetDataObjectType())
+    {
+    case VTK_UNSTRUCTURED_GRID:
+      return this->DefineAndWrite<vtkUnstructuredGrid>();
+    default:
+      vtkErrorMacro("Input vtkDataObject type not supported by ADIOS writer");
+      return false;
+    }
+}
+
+//----------------------------------------------------------------------------
+int vtkADIOSWriter::FillInputPortInformation(int port, vtkInformation *info)
+{
+  // Only 1 port
+  if(port != 0)
+    {
+    return 0;
+    }
+
+  info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkDataObject");
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkADIOSWriter::ProcessRequest(vtkInformation* request,
+  vtkInformationVector** input, vtkInformationVector* output)
+{
+  if(request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
+    {
+    return this->RequestInformation(request, input, output);
+    }
+
+  if(request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
+    {
+    return this->RequestUpdateExtent(request, input, output);
+    }
+
+  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
+    {
+    return this->RequestData(request, input, output);
+    }
+
+  return this->Superclass::ProcessRequest(request, input, output);
+}
+
+//----------------------------------------------------------------------------
+bool vtkADIOSWriter::RequestInformation(vtkInformation *req,
+  vtkInformationVector **input, vtkInformationVector *vtkNotUsed(output))
+{
+  vtkInformation *inInfo = input[0]->GetInformationObject(0);
+
+  if (inInfo->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
+    {
+    int len = inInfo->Length(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
+
+    double *steps = inInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
+    this->TimeSteps.clear();
+    this->TimeSteps.reserve(len);
+    this->TimeSteps.insert(this->TimeSteps.begin(), steps, steps+len);
+    this->CurrentTimeStep = this->TimeSteps.begin();
+    }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkADIOSWriter::RequestUpdateExtent(vtkInformation *req,
+  vtkInformationVector **input, vtkInformationVector *vtkNotUsed(output))
+{
+  vtkInformation* inInfo = input[0]->GetInformationObject(0);
+ 
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES(),
+    this->NumberOfPieces);
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER(),
+    this->RequestPiece);
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP(),
+      *this->CurrentTimeStep);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkADIOSWriter::RequestData(vtkInformation *req,
+  vtkInformationVector **input, vtkInformationVector *vtkNotUsed(output))
+{
+  vtkInformation* inInfo = input[0]->GetInformationObject(0);
+  this->Input = inInfo->Get(vtkDataObject::DATA_OBJECT());
+
+  // Start looping if we're at the beginning
+  if(this->CurrentTimeStep == this->TimeSteps.begin() &&
+      this->WriteAllTimeSteps)
+    {
+    req->Set(vtkStreamingDemandDrivenPipeline::CONTINUE_EXECUTING(), 1);
+    }
+
+  if(!this->Write())
+    {
+    return false;
+    }
+
+  // End looping if we're at the end
+  if(++this->CurrentTimeStep == this->TimeSteps.end() &&
+     this->WriteAllTimeSteps)
+    {
+    req->Set(vtkStreamingDemandDrivenPipeline::CONTINUE_EXECUTING(), 0);
+    }
+
+  return true;
+}
+

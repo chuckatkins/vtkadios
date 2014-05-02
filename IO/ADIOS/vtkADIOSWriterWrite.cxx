@@ -12,6 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+#include "ADIOSWriter.h"
 #include "vtkADIOSWriter.h"
 #include <vtkAbstractArray.h>
 #include <vtkDataArray.h>
@@ -24,6 +25,7 @@
 #include <vtkDataSet.h>
 #include <vtkImageData.h>
 #include <vtkPolyData.h>
+#include <vtkUnstructuredGrid.h>
 
 //----------------------------------------------------------------------------
 void vtkADIOSWriter::Write(const std::string& path, const vtkAbstractArray* v)
@@ -36,7 +38,7 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkAbstractArray* v)
     return;
     }
 
-  this->Writer.WriteArray(path, valueTmp->GetVoidPointer(0));
+  this->Writer->WriteArray(path, valueTmp->GetVoidPointer(0));
 }
 
 //----------------------------------------------------------------------------
@@ -60,7 +62,7 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkDataArray* v)
 void vtkADIOSWriter::Write(const std::string& path, const vtkCellArray* v)
 {
   vtkCellArray* valueTmp = const_cast<vtkCellArray*>(v);
-  this->Writer.WriteScalar<vtkIdType>(path+"/NumberOfCells",
+  this->Writer->WriteScalar<vtkIdType>(path+"/NumberOfCells",
     valueTmp->GetNumberOfCells());
   this->Write(path+"/Ia", valueTmp->GetData());
 }
@@ -87,44 +89,47 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkFieldData* v)
 void vtkADIOSWriter::Write(const std::string& path, const vtkDataSet* v)
 {
   vtkDataSet* valueTmp = const_cast<vtkDataSet*>(v);
-  this->Writer.WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType", VTK_DATA_SET);
+  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType", VTK_DATA_SET);
   this->Write(path+"/FieldData", valueTmp->GetFieldData());
   this->Write(path+"/CellData", valueTmp->GetCellData());
   this->Write(path+"/PointData", valueTmp->GetPointData());
 }
+
 //----------------------------------------------------------------------------
 void vtkADIOSWriter::Write(const std::string& path, const vtkImageData* v)
 {
   this->Write(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
 
   vtkImageData* valueTmp = const_cast<vtkImageData*>(v);
-  this->Writer.WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType", VTK_IMAGE_DATA);
+  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType", VTK_IMAGE_DATA);
 
   double *origin = valueTmp->GetOrigin();
-  this->Writer.WriteScalar<double>(path+"/OriginX", origin[0]);
-  this->Writer.WriteScalar<double>(path+"/OriginY", origin[1]);
-  this->Writer.WriteScalar<double>(path+"/OriginZ", origin[2]);
+  this->Writer->WriteScalar<double>(path+"/OriginX", origin[0]);
+  this->Writer->WriteScalar<double>(path+"/OriginY", origin[1]);
+  this->Writer->WriteScalar<double>(path+"/OriginZ", origin[2]);
 
   double *spacing = valueTmp->GetSpacing();
-  this->Writer.WriteScalar<double>(path+"/SpacingX", spacing[0]);
-  this->Writer.WriteScalar<double>(path+"/SpacingY", spacing[1]);
-  this->Writer.WriteScalar<double>(path+"/SpacingZ", spacing[2]);
+  this->Writer->WriteScalar<double>(path+"/SpacingX", spacing[0]);
+  this->Writer->WriteScalar<double>(path+"/SpacingY", spacing[1]);
+  this->Writer->WriteScalar<double>(path+"/SpacingZ", spacing[2]);
 
   int *extent = valueTmp->GetExtent();
-  this->Writer.WriteScalar<int>(path+"/ExtentXMin", extent[0]);
-  this->Writer.WriteScalar<int>(path+"/ExtentXMax", extent[1]);
-  this->Writer.WriteScalar<int>(path+"/ExtentYMin", extent[2]);
-  this->Writer.WriteScalar<int>(path+"/ExtentYMax", extent[3]);
-  this->Writer.WriteScalar<int>(path+"/ExtentZMin", extent[4]);
-  this->Writer.WriteScalar<int>(path+"/ExtentZMax", extent[5]);
+  this->Writer->WriteScalar<int>(path+"/ExtentXMin", extent[0]);
+  this->Writer->WriteScalar<int>(path+"/ExtentXMax", extent[1]);
+  this->Writer->WriteScalar<int>(path+"/ExtentYMin", extent[2]);
+  this->Writer->WriteScalar<int>(path+"/ExtentYMax", extent[3]);
+  this->Writer->WriteScalar<int>(path+"/ExtentZMin", extent[4]);
+  this->Writer->WriteScalar<int>(path+"/ExtentZMax", extent[5]);
 }
 
+//----------------------------------------------------------------------------
 void vtkADIOSWriter::Write(const std::string& path, const vtkPolyData* v)
 {
   this->Write(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
 
   vtkPolyData* valueTmp = const_cast<vtkPolyData*>(v);
-  this->Writer.WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType", VTK_POLY_DATA);
+  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType",
+    VTK_POLY_DATA);
 
   vtkPoints *p;
   if(p = valueTmp->GetPoints())
@@ -136,4 +141,29 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkPolyData* v)
   this->Write(path+"/Lines", valueTmp->GetLines());
   this->Write(path+"/Polygons", valueTmp->GetPolys());
   this->Write(path+"/Strips", valueTmp->GetStrips());
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSWriter::Write(const std::string& path,
+  const vtkUnstructuredGrid* v)
+{
+  this->Write(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
+
+  vtkUnstructuredGrid *valueTmp = const_cast<vtkUnstructuredGrid*>(v);
+  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType",
+    VTK_UNSTRUCTURED_GRID);
+
+  vtkPoints *p;
+  if(p = valueTmp->GetPoints())
+    {
+    this->Write(path+"/Points", p->GetData());
+    }
+
+  vtkCellArray *ca;
+  vtkUnsignedCharArray *cta;
+  if((ca = valueTmp->GetCells()) && (cta = valueTmp->GetCellTypesArray()))
+    {
+    this->Write(path+"/Cells", ca);
+    this->Write(path+"/CellTypes", cta);
+    }
 }

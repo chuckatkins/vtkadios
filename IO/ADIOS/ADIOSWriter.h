@@ -19,12 +19,18 @@
 
 #include <string>
 #include <vector>
+#include <adios_mpi.h>
 
 class ADIOSWriter
 {
 public:
   ADIOSWriter(void);
   ~ADIOSWriter(void);
+
+  // Description:
+  // Initialize the underlying ADIOS subsystem
+  bool Initialize(MPI_Comm comm, const std::string &transport = "POSIX",
+    const std::string &transportArgs = "");
 
   // Description
   // Define scalars for later writing
@@ -46,8 +52,12 @@ public:
     int vtkType);
 
   // Description:
-  // Open the ADIOS file and cache the variable names and scalar data
-  void InitializeFile(const std::string &fileName);
+  // Open the vtk group in the ADIOS file for writing one timestep
+  void Open(const std::string &fileName, bool append = false);
+
+  // Description:
+  // Close the VTK group for the current time step in the ADIOS file
+  void Close(void);
 
   // Description
   // Schedule scalars for writing

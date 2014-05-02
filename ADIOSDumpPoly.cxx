@@ -5,13 +5,8 @@
 #include <vtkNew.h>
 #include <vtkSmartPointer.h>
 #include <vtkPolyData.h>
-#include <vtkXMLPolyDataReader.h>
-#include <vtkStructuredPointsWriter.h>
-#include <vtkTIFFWriter.h>
-#include <vtkDataArray.h>
 
-#include "IO/ADIOS/vtkADIOSReader.h"
-#include "IO/ADIOS/ADIOSReader.h"
+#include "IO/ADIOS/vtkADIOSPolyDataReader.h"
 
 vtkSmartPointer<vtkPolyData> readADIOSPoly(const std::string &filename);
 
@@ -34,7 +29,7 @@ int main(int argc, char **argv)
       {
       return 2;
       }
-    poly->PrintSelf(std::cout, vtkIndent(4));
+    poly->PrintSelf(std::cout, vtkIndent());
   }
 
   return 0;
@@ -42,13 +37,11 @@ int main(int argc, char **argv)
 
 vtkSmartPointer<vtkPolyData> readADIOSPoly(const std::string &filename)
 {
-  vtkNew<vtkADIOSReader> reader;
+  vtkNew<vtkADIOSPolyDataReader> reader;
+
   reader->SetFileName(filename);
-  reader->OpenAndReadMetadata();
-  reader->PrintSelf(std::cout, vtkIndent(1));
+  reader->Update();
+  reader->PrintSelf(std::cout, vtkIndent());
 
-  vtkSmartPointer<vtkPolyData> data(reader->ReadObject<vtkPolyData>("/"));
-  reader->WaitForReads();
-
-  return data;
+  return reader->GetOutput();
 }

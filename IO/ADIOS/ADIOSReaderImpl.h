@@ -19,17 +19,19 @@
 #include "ADIOSVarInfo.h"
 #include <vector>
 #include <map>
+#include <utility>
 #include <adios_read.h>
-#define COMMUNICATOR MPI_COMM_WORLD
 
 struct ADIOSReader::ADIOSReaderImpl
 {
-  ADIOSReaderImpl()
-  : File(NULL)
+  ADIOSReaderImpl(MPI_Comm comm)
+  : File(NULL), Comm(comm)
   { }
 
   ADIOS_FILE* File;
+  MPI_Comm Comm;
 
+  std::pair<int, int> StepRange;
   std::vector<ADIOSVarInfo*> Scalars;
   std::vector<ADIOSVarInfo*> Arrays;
   std::map<std::string, int> ArrayIds;

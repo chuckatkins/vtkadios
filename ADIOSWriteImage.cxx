@@ -64,6 +64,16 @@ void writeADIOSImage(
 
   writer->SetFileName(filename);
   writer->Define("", image);
-  writer->InitializeFile();
+
+  writer->OpenFile();
   writer->Write("", image);
+  writer->CloseFile();
+
+  writer->OpenFile();
+  writer->Write("", image);
+  writer->CloseFile();
+
+  writer->OpenFile();
+  writer->Write("", image);
+  writer->CloseFile();
 }

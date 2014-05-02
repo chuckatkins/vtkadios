@@ -12,8 +12,10 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkADIOSWriter.h"
 #include <vector>
+
+#include "ADIOSWriter.h"
+#include "vtkADIOSWriter.h"
 #include <vtkAbstractArray.h>
 #include <vtkLookupTable.h>
 #include <vtkDataArray.h>
@@ -25,6 +27,7 @@
 #include <vtkDataSet.h>
 #include <vtkImageData.h>
 #include <vtkPolyData.h>
+#include <vtkUnstructuredGrid.h>
 
 //----------------------------------------------------------------------------
 void vtkADIOSWriter::Define(const std::string& path, const vtkAbstractArray* v)
@@ -40,7 +43,7 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkAbstractArray* v)
   std::vector<size_t> dims;
   dims.push_back(valueTmp->GetNumberOfComponents());
   dims.push_back(valueTmp->GetNumberOfTuples());
-  this->Writer.DefineArray(path, dims, valueTmp->GetDataType());
+  this->Writer->DefineArray(path, dims, valueTmp->GetDataType());
 }
 
 //----------------------------------------------------------------------------
@@ -66,7 +69,7 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkDataArray* v)
 void vtkADIOSWriter::Define(const std::string& path, const vtkCellArray* v)
 {
   vtkCellArray *valueTmp = const_cast<vtkCellArray*>(v);
-  this->Writer.DefineScalar<vtkIdType>(path+"/NumberOfCells");
+  this->Writer->DefineScalar<vtkIdType>(path+"/NumberOfCells");
   this->Define(path+"/Ia", valueTmp->GetData());
 }
 
@@ -92,7 +95,7 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkFieldData* v)
 void vtkADIOSWriter::Define(const std::string& path, const vtkDataSet* v)
 {
   vtkDataSet* valueTmp = const_cast<vtkDataSet*>(v);
-  this->Writer.DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
+  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
   this->Define(path+"/FieldData", valueTmp->GetFieldData());
   this->Define(path+"/CellData", valueTmp->GetCellData());
   this->Define(path+"/PointData", valueTmp->GetPointData());
@@ -103,27 +106,28 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkImageData* v)
 {
   this->Define(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
 
-  this->Writer.DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
-  this->Writer.DefineScalar<double>(path+"/OriginX");
-  this->Writer.DefineScalar<double>(path+"/OriginY");
-  this->Writer.DefineScalar<double>(path+"/OriginZ");
-  this->Writer.DefineScalar<double>(path+"/SpacingX");
-  this->Writer.DefineScalar<double>(path+"/SpacingY");
-  this->Writer.DefineScalar<double>(path+"/SpacingZ");
-  this->Writer.DefineScalar<int>(path+"/ExtentXMin");
-  this->Writer.DefineScalar<int>(path+"/ExtentXMax");
-  this->Writer.DefineScalar<int>(path+"/ExtentYMin");
-  this->Writer.DefineScalar<int>(path+"/ExtentYMax");
-  this->Writer.DefineScalar<int>(path+"/ExtentZMin");
-  this->Writer.DefineScalar<int>(path+"/ExtentZMax");
+  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
+  this->Writer->DefineScalar<double>(path+"/OriginX");
+  this->Writer->DefineScalar<double>(path+"/OriginY");
+  this->Writer->DefineScalar<double>(path+"/OriginZ");
+  this->Writer->DefineScalar<double>(path+"/SpacingX");
+  this->Writer->DefineScalar<double>(path+"/SpacingY");
+  this->Writer->DefineScalar<double>(path+"/SpacingZ");
+  this->Writer->DefineScalar<int>(path+"/ExtentXMin");
+  this->Writer->DefineScalar<int>(path+"/ExtentXMax");
+  this->Writer->DefineScalar<int>(path+"/ExtentYMin");
+  this->Writer->DefineScalar<int>(path+"/ExtentYMax");
+  this->Writer->DefineScalar<int>(path+"/ExtentZMin");
+  this->Writer->DefineScalar<int>(path+"/ExtentZMax");
 }
 
+//----------------------------------------------------------------------------
 void vtkADIOSWriter::Define(const std::string& path, const vtkPolyData* v)
 {
   this->Define(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
 
   vtkPolyData *valueTmp = const_cast<vtkPolyData*>(v);
-  this->Writer.DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
+  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
 
   vtkPoints *p;
   if(p = valueTmp->GetPoints())
@@ -135,4 +139,28 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkPolyData* v)
   this->Define(path+"/Lines", valueTmp->GetLines());
   this->Define(path+"/Polygons", valueTmp->GetPolys());
   this->Define(path+"/Strips", valueTmp->GetStrips());
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSWriter::Define(const std::string& path,
+  const vtkUnstructuredGrid* v)
+{
+  this->Define(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
+
+  vtkUnstructuredGrid *valueTmp = const_cast<vtkUnstructuredGrid*>(v);
+  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
+
+  vtkPoints *p;
+  if(p = valueTmp->GetPoints())
+    {
+    this->Define(path+"/Points", p->GetData());
+    }
+
+  vtkCellArray *ca;
+  vtkUnsignedCharArray *cta;
+  if((ca = valueTmp->GetCells()) && (cta = valueTmp->GetCellTypesArray()))
+    {
+    this->Define(path+"/Cells", ca);
+    this->Define(path+"/CellTypes", cta);
+    }
 }

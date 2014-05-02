@@ -64,6 +64,7 @@ void writeADIOSPoly(
 
   writer->SetFileName(filename);
   writer->Define("", poly);
-  writer->InitializeFile();
+  writer->OpenFile();
   writer->Write("", poly);
+  writer->CloseFile();
 }

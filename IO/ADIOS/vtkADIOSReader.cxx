@@ -15,9 +15,8 @@
 #include <map>
 #include <sstream>
 #include <stdexcept>
+#include <limits>
 
-#include "vtkADIOSReader.h"
-#include "ADIOSVarInfo.h"
 #include <vtkObjectFactory.h>
 #include <vtkType.h>
 #include <vtkDataArray.h>
@@ -28,6 +27,13 @@
 #include <vtkPointData.h>
 #include <vtkImageData.h>
 #include <vtkPolyData.h>
+#include <vtkInformation.h>
+#include <vtkInformationVector.h>
+#include <vtkDemandDrivenPipeline.h>
+#include <vtkStreamingDemandDrivenPipeline.h>
+
+#include "vtkADIOSReader.h"
+#include "ADIOSVarInfo.h"
 
 #define TEST_OBJECT_TYPE(subDir, objType) \
   if(!subDir) \
@@ -44,12 +50,10 @@
 //----------------------------------------------------------------------------
 typedef std::map<std::string, vtkADIOSDirTree> SubDirMap;
 typedef std::map<std::string, const ADIOSVarInfo*> VarMap;
+const double INVALID_STEP = std::numeric_limits<double>::min();
 
 //----------------------------------------------------------------------------
 
-vtkStandardNewMacro(vtkADIOSReader);
-
-//----------------------------------------------------------------------------
 vtkADIOSReader::vtkADIOSReader()
 : vtkAlgorithm(), Output(NULL)
 {
@@ -71,76 +75,138 @@ int vtkADIOSReader::ProcessRequest(vtkInformation* request,
     return false;
     }
 
-  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
-    {
-    return this->RequestDataObject(request, input, output);
-    }
+  /* Request "static" information i.e. num timesteps, max extents, num pieces*/
   if(request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
     {
     return this->RequestInformation(request, input, output);
     }
-  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
-    {
-    return this->RequestData(request, input, output);
-    }
-  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_NOT_GENERATED()))
-    {
-    return this->RequestDataNotGenerated(request, input, output);
-    }
-  if(request->Has(vtkDemandDrivenPipeline::REQUEST_REGENERATE_INFORMATION()))
-    {
-    return this->RequestRegenerateInformation(request, input, output);
-    }
-  if(request->Has(vtkDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
+
+  if(request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
     {
     return this->RequestUpdateExtent(request, input, output);
     }
-  if(request->Has(vtkDemandDrivenPipeline::REQUEST_UPDATE_TIME()))
+
+  if(request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_TIME()))
     {
     return this->RequestUpdateTime(request, input, output);
     }
+
+  /* TODO: Deal with later
   if(request->Has(vtkDemandDrivenPipeline::REQUEST_UPDATE_TIME_DEPENDENT_INFORMATION()))
     {
     return this->RequestUpdateTimeDependentInformation(request, input, output);
+    }
+  */
+
+  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
+    {
+    this->Output = NULL;
+    if(!this->AdvanceToRequestStep())
+      {
+      return false;
+      }
+    return this->RequestData(request, input, output);
     }
 
   return this->Superclass::ProcessRequest(request, input, output);
 }
 
 //----------------------------------------------------------------------------
-bool vtkADIOSReader::RequestDataObject(vtkInformation *req,
-  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
+bool vtkADIOSReader::AdvanceToRequestStep(void)
 {
-  vtkErrorMacro("Not implemented");
-  return false;
+  if(this->Reader.GetCurrentStep() >= this->RequestStep)
+    {
+    return true;
+    }
+
+  int step;
+  while((step = this->Reader.Advance()) != -1 && step < this->RequestStep);
+  if(step == -1)
+    {
+    return false;
+    }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
 bool vtkADIOSReader::RequestInformation(vtkInformation *req,
   vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
 {
-  vtkErrorMacro("Not Implemented");
-  return false;
+  int nSteps, tStart, tEnd;
+  vtkInformation* outInfo = output->GetInformationObject(0);
+
+  this->Reader.GetStepRange(tStart, tEnd);
+  nSteps = tEnd - tStart + 1;
+
+  double *tSteps = new double[nSteps];
+  for(int i = 0; i < nSteps; ++i)
+    {
+    tSteps[i] = tStart + i;
+    }
+  outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), tSteps, nSteps);
+
+  double *tRange = new double[2];
+  tRange[0] = tStart;
+  tRange[1] = tEnd;
+  outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), tRange, 2);
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
-bool vtkADIOSReader::RequestData(vtkInformation *req,
+bool vtkADIOSReader::RequestUpdateExtent(vtkInformation *req,
   vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
 {
-  if(!this->Object)
+  vtkErrorMacro("Not Implemented");
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkADIOSReader::RequestUpdateTime(vtkInformation *req,
+  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
+{
+  vtkInformation* outInfo = output->GetInformationObject(0);
+  double reqStep = outInfo->Get(
+    vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP());
+
+  if(this->RequestStepPrev != INVALID_STEP && reqStep < this->RequestStepPrev)
     {
-    vtkErrorMacro("Object is not yet allocated");
+    // Currently not possible until we implement the Delorian feature
+    vtkErrorMacro("Time steps for ADIOS can only move forward!");
     return false;
     }
 
-  // If the object exists, then it's array reads have already been scheduled
+  this->RequestStep = reqStep;
+  return true;
+}
+
+//----------------------------------------------------------------------------
+//bool vtkADIOSReader::RequestUpdateTimeDependentInformation(vtkInformation *req,
+//  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
+//{
+//  vtkErrorMacro("Not Implemented");
+//  return false;
+//}
+
+//----------------------------------------------------------------------------
+bool vtkADIOSReader::RequestData(vtkInformation *req,
+  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *outputVector)
+{
+  // This should get called by the parent class, which should have already
+  // allocated the object and scheduled it's reads
+  if(!this->Output)
+    {
+    return false;
+    }
+
   try
     {
     this->WaitForReads();
     }
- catch(const std::runtime_error &e)
+  catch(const std::runtime_error &e)
     {
-    vtkErrorMacro(e.what());
+    //vtkErrorMacro(e.what().c_str());
     return false;
     }
 
@@ -149,47 +215,11 @@ bool vtkADIOSReader::RequestData(vtkInformation *req,
   vtkDataObject* output = outInfo->Get(vtkDataObject::DATA_OBJECT());
   output->ShallowCopy(this->Output);
 
+  // Clear the requested step
+  this->RequestStepPrev = this->RequestStep;
+  this->RequestStep = INVALID_STEP;
+
   return true;
-}
-
-//----------------------------------------------------------------------------
-bool vtkADIOSReader::RequestDataNotGenerated(vtkInformation *req,
-  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
-{
-  vtkErrorMacro("Not Implemented");
-  return false;
-}
-
-//----------------------------------------------------------------------------
-bool vtkADIOSReader::RequestRegenerateInformation(vtkInformation *req,
-  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
-{
-  vtkErrorMacro("Not Implemented");
-  return false;
-}
-
-//----------------------------------------------------------------------------
-bool vtkADIOSReader::RequestUpdateExtent(vtkInformation *req,
-  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
-{
-  vtkErrorMacro("Not Implemented");
-  return false;
-}
-
-//----------------------------------------------------------------------------
-bool vtkADIOSReader::RequestUpdateTime(vtkInformation *req,
-  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
-{
-  vtkErrorMacro("Not Implemented");
-  return false;
-}
-
-//----------------------------------------------------------------------------
-bool vtkADIOSReader::RequestUpdateTimeDependentInformation(vtkInformation *req,
-  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
-{
-  vtkErrorMacro("Not Implemented");
-  return false;
 }
 
 //----------------------------------------------------------------------------
@@ -211,13 +241,14 @@ bool vtkADIOSReader::OpenAndReadMetadata(void)
 
   try
     {
-    this->Reader.InitializeFile(this->FileName);
+    this->Reader.OpenFile(this->FileName);
     this->Tree.BuildDirTree(this->Reader);
     }
   catch(const std::runtime_error&)
     {
     return false;
     }
+  return true;
 }
 
 //----------------------------------------------------------------------------

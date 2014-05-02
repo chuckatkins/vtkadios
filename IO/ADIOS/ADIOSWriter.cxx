@@ -13,13 +13,20 @@
 
 =========================================================================*/
 
-#include "ADIOSWriter.h"
-#include "ADIOSUtilities.h"
 #include <limits>
 #include <complex>
 #include <sstream>
+#include <fstream>
+#include <iostream>
 #include <adios.h>
-#define COMMUNICATOR MPI_COMM_WORLD
+
+#include "ADIOSWriter.h"
+#include "ADIOSUtilities.h"
+
+#ifndef _NDEBUG
+//#define DebugMacro(x)  std::cerr << "DEBUG: " << x << std::endl;
+#define DebugMacro(x)
+#endif
 
 static const int64_t INVALID_INT64 = std::numeric_limits<int64_t>::min();
 
@@ -28,8 +35,9 @@ struct ADIOSWriter::ADIOSWriterImpl
 {
   ADIOSWriterImpl(void)
   : IsWriting(false), File(INVALID_INT64), Group(INVALID_INT64),
-    GroupSize(0)
-  { }
+    GroupSize(0), TotalSize(0)
+  {
+  }
 
   void TestDefine(void)
   {
@@ -40,52 +48,55 @@ struct ADIOSWriter::ADIOSWriterImpl
       }
   }
 
+  MPI_Comm Comm;
   bool IsWriting;
   int64_t File;
   int64_t Group;
-  int64_t GroupSize;
+  uint64_t GroupSize;
+  uint64_t TotalSize;
 };
 
 //----------------------------------------------------------------------------
 ADIOSWriter::ADIOSWriter(void)
 : Impl(new ADIOSWriterImpl)
 {
+}
+
+//----------------------------------------------------------------------------
+bool ADIOSWriter::Initialize(MPI_Comm comm, const std::string &transport,
+  const std::string &transportArgs)
+{
+  if(this->Impl->Group != INVALID_INT64)
+    {
+    return false;
+    }
+  this->Impl->Comm = comm;
+
   int err;
 
-  err = adios_init_noxml(COMMUNICATOR);
+  err = adios_init_noxml(this->Impl->Comm);
   ADIOSUtilities::TestWriteErrorEq(0, err);
 
-  err = adios_allocate_buffer(ADIOS_BUFFER_ALLOC_NOW, 10);
+  err = adios_allocate_buffer(ADIOS_BUFFER_ALLOC_NOW, 100);
   ADIOSUtilities::TestWriteErrorEq(0, err);
 
   err = adios_declare_group(&this->Impl->Group, "VTK", "",
     adios_flag_yes);
   ADIOSUtilities::TestWriteErrorEq(0, err);
 
-  err = adios_select_method(this->Impl->Group, "POSIX", "", "");
+  //err = adios_select_method(this->Impl->Group, "POSIX", "", "");
+  err = adios_select_method(this->Impl->Group, transport.c_str(),
+    transportArgs.c_str(), "");
   ADIOSUtilities::TestWriteErrorEq(0, err);
 }
 
 //----------------------------------------------------------------------------
 ADIOSWriter::~ADIOSWriter(void)
 {
-  int err;
-
-  if(this->Impl->File != INVALID_INT64)
-    {
-    adios_close(this->Impl->File);
-    err = adios_finalize(0);
-    if(err != 0)
-      {
-      // Debug error message
-      }
-    }
+  this->Close();
 
   int rank = 0;
-#ifndef _NOMPI
-  MPI_Comm_rank(COMMUNICATOR, &rank);
-  MPI_Barrier(COMMUNICATOR);
-#endif
+  MPI_Comm_rank(this->Impl->Comm, &rank);
   adios_finalize(rank);
 
   delete this->Impl;
@@ -95,6 +106,8 @@ ADIOSWriter::~ADIOSWriter(void)
 template<typename TN>
 void ADIOSWriter::DefineScalar(const std::string& path)
 {
+  DebugMacro( "Define Scalar: " << path);
+
   this->Impl->TestDefine();
   int id;
   id = adios_define_var(this->Impl->Group, path.c_str(), "",
@@ -120,6 +133,8 @@ INSTANTIATE(double)
 //----------------------------------------------------------------------------
 void ADIOSWriter::DefineScalar(const std::string& path, const std::string& v)
 {
+  DebugMacro( "Define Scalar: " << path);
+
   this->Impl->TestDefine();
   int id;
   id = adios_define_var(this->Impl->Group, path.c_str(), "",
@@ -155,6 +170,7 @@ INSTANTIATE(double)
 void ADIOSWriter::DefineArray(const std::string& path,
   const std::vector<size_t>& dims, int vtkType)
 {
+
   this->Impl->TestDefine();
   ADIOS_DATATYPES adiosType = ADIOSUtilities::TypeVTKToADIOS(vtkType);
 
@@ -168,6 +184,7 @@ void ADIOSWriter::DefineArray(const std::string& path,
   ssDims << dims[dims.size()-1];
   numBytes *= dims[dims.size()-1];
 
+  DebugMacro("Define Array: " << path << " [" << ssDims.str() << "]");
   int id;
   id = adios_define_var(this->Impl->Group, path.c_str(), "",
     adiosType, ssDims.str().c_str(), NULL, NULL);
@@ -176,23 +193,43 @@ void ADIOSWriter::DefineArray(const std::string& path,
 }
 
 //----------------------------------------------------------------------------
-void ADIOSWriter::InitializeFile(const std::string &fileName)
+void ADIOSWriter::Open(const std::string &fileName, bool append)
 {
   int err;
 
-  err = adios_open(&this->Impl->File, "VTK", fileName.c_str(), "w",
-    COMMUNICATOR);
+  const char *mode = append ? "a" : "w";
+  
+  err = adios_open(&this->Impl->File, "VTK", fileName.c_str(), append?"a":"w",
+    this->Impl->Comm);
   ADIOSUtilities::TestWriteErrorEq(0, err);
 
-  uint64_t totalSize;
-  err = adios_group_size(this->Impl->File, this->Impl->GroupSize,  &totalSize);
+  err = adios_group_size(this->Impl->File, this->Impl->GroupSize,
+    &this->Impl->TotalSize);
   ADIOSUtilities::TestWriteErrorEq(0, err);
+}
+
+//----------------------------------------------------------------------------
+void ADIOSWriter::Close(void)
+{
+  if(this->Impl->File == INVALID_INT64)
+    {
+    return;
+    }
+
+  adios_close(this->Impl->File);
+  this->Impl->File = INVALID_INT64;
+
+  int rank = 0;
+  MPI_Comm_rank(this->Impl->Comm, &rank);
+  MPI_Barrier(this->Impl->Comm);
 }
 
 //----------------------------------------------------------------------------
 template<typename TN>
 void ADIOSWriter::WriteScalar(const std::string& path, const TN& value)
 {
+  DebugMacro( "Write Scalar: " << path);
+
   this->Impl->IsWriting = true;
 
   int err;
@@ -220,6 +257,8 @@ template<>
 void ADIOSWriter::WriteScalar<std::string>(const std::string& path,
   const std::string& value)
 {
+  DebugMacro( "Write Scalar: " << path);
+
   this->Impl->IsWriting = true;
 
   int err;
@@ -232,6 +271,8 @@ void ADIOSWriter::WriteScalar<std::string>(const std::string& path,
 template<typename TN>
 void ADIOSWriter::WriteArray(const std::string& path, const TN* value)
 {
+  DebugMacro( "Write Array: " << path);
+
   this->Impl->IsWriting = true;
 
   int err;

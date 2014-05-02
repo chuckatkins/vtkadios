@@ -20,10 +20,15 @@
 #define __vtkADIOSWriter_h
 
 #include <string>
+#include <vector>
 
 #include "vtkIOADIOSModule.h" // For export macro
-#include "ADIOSWriter.h"
-#include <vtkObject.h>
+#include <vtkAlgorithm.h>
+#include <vtkSmartPointer.h>
+#include <vtkDataObject.h>
+#include <vtkMPIController.h>
+
+class ADIOSWriter;
 
 class vtkAbstractArray;
 class vtkDataArray;
@@ -32,27 +37,61 @@ class vtkFieldData;
 class vtkDataSet;
 class vtkImageData;
 class vtkPolyData;
+class vtkUnstructuredGrid;
 
-class VTKIOADIOS_EXPORT vtkADIOSWriter : public vtkObject
+class VTKIOADIOS_EXPORT vtkADIOSWriter : public vtkAlgorithm
 {
 public:
-  static vtkADIOSWriter *New();
-  vtkTypeMacro(vtkADIOSWriter,vtkObject);
+  static vtkADIOSWriter* New(void);
+  vtkTypeMacro(vtkADIOSWriter,vtkAlgorithm);
   virtual void PrintSelf(std::ostream& os, vtkIndent indent);
 
   //BTX
   // Description:
   // Get/Set the output filename
-  const std::string& GetFileName() const
-  {
-    return this->FileName;
-  }
-  void SetFileName(const std::string& filename)
-  {
-    this->FileName = filename;
-  }
+  vtkSetMacro(FileName, const std::string&);
+  vtkGetMacro(FileName, const std::string&);
   //ETX
-  
+
+  //BTX
+  // Description:
+  // Get/Set the ADIOS transport method (default is "POSIX").  If called, it
+  // must be called BEFORE SetController.
+  vtkSetMacro(TransportMethod, const std::string&);
+  vtkGetMacro(TransportMethod, const std::string&);
+  //ETX
+
+  //BTX
+  // Description:
+  // Get/Set arguments to the ADIOS transport method (default is "").  If
+  // called, it must be called BEFORE SetController
+  vtkSetMacro(TransportArguments, const std::string&);
+  vtkGetMacro(TransportArguments, const std::string&);
+  //ETX
+
+  //BTX
+  // Description:
+  // Set the MPI controller.
+  void SetController(vtkMPIController*);
+  //ETX
+
+  // Description:
+  // Manually set the input data when not running  a pipeline
+  void SetInput(vtkDataObject* input) { this->Input = input; }
+
+  // Description:
+
+  // Description:
+  // The main interface which triggers the writer to start
+  virtual int ProcessRequest(vtkInformation*, vtkInformationVector**,
+    vtkInformationVector*);
+
+  // Description:
+  // Declare data if necessary and write the current step to the output stream
+  virtual bool Write(void);
+
+protected:
+
   // Description:
   // Define a VTK data type
   void Define(const std::string& path, const vtkAbstractArray* value);
@@ -62,10 +101,15 @@ public:
   void Define(const std::string& path, const vtkDataSet* value);
   void Define(const std::string& path, const vtkImageData* value);
   void Define(const std::string& path, const vtkPolyData* value);
+  void Define(const std::string& path, const vtkUnstructuredGrid* value);
 
   // Description:
-  // Open a file and prepare for writing already defined variables
-  void InitializeFile(void);
+  // Open a file and prepare for writing already defined variables.
+  // NOTE: The data is declared only once but the file must be opened and
+  // closed for every timestep.  Data is not flushed, however, until the final
+  // destructor.
+  void OpenFile(void);
+  void CloseFile(void);
 
   // Description:
   // Write a previously defined VTK data type
@@ -76,15 +120,45 @@ public:
   void Write(const std::string& path, const vtkDataSet* value);
   void Write(const std::string& path, const vtkImageData* value);
   void Write(const std::string& path, const vtkPolyData* value);
+  void Write(const std::string& path, const vtkUnstructuredGrid* value);
 
-protected:
   std::string FileName;
-  ADIOSWriter Writer;
+  std::string TransportMethod;
+  std::string TransportArguments;
+  ADIOSWriter *Writer;
+  bool FirstStep;
+  int Rank;
+  vtkSmartPointer<vtkMPIController> Controller;
 
   vtkADIOSWriter();
   ~vtkADIOSWriter();
 
+protected:
+  // Used to implement vtkAlgorithm
+
+  int FillInputPortInformation(int port, vtkInformation* info);
+
+  bool RequestInformation(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+  bool RequestUpdateExtent(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+  bool RequestData(vtkInformation *request,
+    vtkInformationVector **input, vtkInformationVector *output);
+
+  int NumberOfPieces;
+  int RequestPiece;
+  int NumberOfGhostLevels;
+  bool WriteAllTimeSteps;
+  std::vector<double> TimeSteps;
+  std::vector<double>::iterator CurrentTimeStep;
+  int RequestExtent[6];
+  int WholeExtent[6];
+  vtkSmartPointer<vtkDataObject> Input;
+
 private:
+  template<typename T>
+  bool DefineAndWrite(void);
+
   vtkADIOSWriter(const vtkADIOSWriter&);  // Not implemented.
   void operator=(const vtkADIOSWriter&);  // Not implemented.
 };

@@ -21,17 +21,16 @@
 #include "ADIOSUtilities.h"
 
 #include <adios_read.h>
-#define COMMUNICATOR MPI_COMM_WORLD
 
 typedef std::map<std::string, int> IdMap;
 
 //----------------------------------------------------------------------------
-ADIOSReader::ADIOSReader(void)
-: Impl(new ADIOSReaderImpl)
+ADIOSReader::ADIOSReader(MPI_Comm comm)
+: Impl(new ADIOSReaderImpl(comm))
 {
   int err;
 
-  err = adios_read_init_method(ADIOS_READ_METHOD_BP, COMMUNICATOR, NULL);
+  err = adios_read_init_method(ADIOS_READ_METHOD_BP, this->Impl->Comm, NULL);
   ADIOSUtilities::TestReadErrorEq<int>(0, err);
 }
 
@@ -46,15 +45,14 @@ ADIOSReader::~ADIOSReader(void)
     }
 
   int rank = 0;
-#ifndef _NOMPI
-  MPI_Comm_rank(COMMUNICATOR, &rank);
-  MPI_Barrier(COMMUNICATOR);
-#endif
+  MPI_Comm_rank(this->Impl->Comm, &rank);
+  MPI_Barrier(this->Impl->Comm);
+
   adios_read_finalize_method(ADIOS_READ_METHOD_BP);
 }
 
 //----------------------------------------------------------------------------
-void ADIOSReader::InitializeFile(const std::string &fileName)
+void ADIOSReader::OpenFile(const std::string &fileName)
 {
   // Make sure we only do this once
   if(this->Impl->File)
@@ -66,8 +64,12 @@ void ADIOSReader::InitializeFile(const std::string &fileName)
 
   // Open the file
   this->Impl->File = adios_read_open(fileName.c_str(),
-    ADIOS_READ_METHOD_BP, COMMUNICATOR, ADIOS_LOCKMODE_NONE, 0);
+    ADIOS_READ_METHOD_BP, this->Impl->Comm, ADIOS_LOCKMODE_NONE, 0);
   ADIOSUtilities::TestReadErrorNe<void*>(NULL, this->Impl->File);
+
+  // Poplulate step information
+  this->Impl->StepRange.first = this->Impl->File->current_step;
+  this->Impl->StepRange.second = this->Impl->File->last_step;
 
   // Preload the scalar data and cache the array metadata
   for(int i = 0; i < this->Impl->File->nvars; ++i)
@@ -88,6 +90,34 @@ void ADIOSReader::InitializeFile(const std::string &fileName)
         this->Impl->ArrayIds.insert(std::make_pair(name, i));
         }
     }
+}
+
+//----------------------------------------------------------------------------
+int ADIOSReader::Advance(void)
+{
+  int err;
+
+  adios_release_step(this->Impl->File);
+  err = adios_advance_step(this->Impl->File, 0, -1);
+  if(err == err_end_of_stream)
+    {
+    return -1;
+    }
+  return this->GetCurrentStep();
+}
+
+
+//----------------------------------------------------------------------------
+void ADIOSReader::GetStepRange(int &tS, int &tE) const
+{
+  tS = this->Impl->StepRange.first;
+  tE = this->Impl->StepRange.second;
+}
+
+//----------------------------------------------------------------------------
+int ADIOSReader::GetCurrentStep(void) const
+{
+  return this->Impl->File->current_step;
 }
 
 //----------------------------------------------------------------------------

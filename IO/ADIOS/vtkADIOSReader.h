@@ -12,7 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkADIOSReader - Read ADIOS ADIOS files.
+// .NAME vtkADIOSReader - Read ADIOS files.
 // .SECTION Description
 // vtkADIOSReader is the base class for all ADIOS writers
 
@@ -46,20 +46,18 @@ class vtkPolyData;
 class VTKIOADIOS_EXPORT vtkADIOSReader : public vtkAlgorithm
 {
 public:
-  static vtkADIOSReader* New();
-  vtkTypeMacro(vtkADIOSReader,vtkObject);
+  vtkTypeMacro(vtkADIOSReader,vtkAlgorithm);
   virtual void PrintSelf(std::ostream& os, vtkIndent indent);
 
   //BTX
   // Description:
-  // Get/Set the output filename
+  // Get/Set the inut filename
   vtkSetMacro(FileName, const std::string&);  
   vtkGetMacro(FileName, const std::string&);  
   //ETX
   
   // Description:
   // The main interface which triggers the reader to start
-  // TODO: Make pure virtual and only implement in derived concrete readers
   virtual int ProcessRequest(vtkInformation*, vtkInformationVector**,
     vtkInformationVector*);
 
@@ -97,34 +95,28 @@ protected:
   ADIOSReader Reader;
 
   vtkADIOSReader();
-  ~vtkADIOSReader();
+  virtual ~vtkADIOSReader();
 
 protected:
-  // Uset to implement vtkAlgorithm
+  // Used to implement vtkAlgorithm
 
-  virtual int ProcessRequest(vtkInformation *request,
-   vtkInformationVector **input, vtkInformationVector *output);
+  bool AdvanceToRequestStep(void);
 
-  virtual bool RequestDataObject(vtkInformation *request,
-    vtkInformationVector **input, vtkInformationVector *output);
+  virtual int FillOutputPortInformation(int, vtkInformation*) = 0;
+
   virtual bool RequestInformation(vtkInformation *request,
     vtkInformationVector **input, vtkInformationVector *output);
-  virtual bool RequestData(vtkInformation *request,
-    vtkInformationVector **input, vtkInformationVector *output);
-  virtual bool RequestDataNotGenerated(vtkInformation *request,
-    vtkInformationVector **input, vtkInformationVector *output);
-  virtual bool RequestRegenerateInformation(vtkInformation *request,
-    vtkInformationVector **input, vtkInformationVector *output);
-
   virtual bool RequestUpdateExtent(vtkInformation *request,
     vtkInformationVector **input, vtkInformationVector *output);
   virtual bool RequestUpdateTime(vtkInformation *request,
     vtkInformationVector **input, vtkInformationVector *output);
-  virtual bool RequestUpdateTimeDependentInformation(vtkInformation *request,
+  //virtual bool RequestUpdateTimeDependentInformation(vtkInformation *request,
+  //  vtkInformationVector **input, vtkInformationVector *output);
+  virtual bool RequestData(vtkInformation *request,
     vtkInformationVector **input, vtkInformationVector *output);
 
-  
-
+  double RequestStepPrev;
+  double RequestStep;
   vtkSmartPointer<vtkDataObject> Output;
 
 private:

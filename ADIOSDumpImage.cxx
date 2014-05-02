@@ -5,13 +5,8 @@
 #include <vtkNew.h>
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
-#include <vtkXMLImageDataReader.h>
-#include <vtkStructuredPointsWriter.h>
-#include <vtkTIFFWriter.h>
-#include <vtkDataArray.h>
 
-#include "IO/ADIOS/vtkADIOSReader.h"
-#include "IO/ADIOS/ADIOSReader.h"
+#include "IO/ADIOS/vtkADIOSImageDataReader.h"
 
 vtkSmartPointer<vtkImageData> readADIOSImage(const std::string &filename);
 
@@ -26,15 +21,15 @@ int main(int argc, char **argv)
   std::string inputFile(argv[1]);
 
   {
-    vtkSmartPointer<vtkImageData> image;
+    vtkSmartPointer<vtkImageData> poly;
 
-    std::cout << "Reading ADIOS image data..." << std::endl;
-    image = readADIOSImage(inputFile);
-    if(!image)
+    std::cout << "Reading ADIOS poly data..." << std::endl;
+    poly = readADIOSImage(inputFile);
+    if(!poly)
       {
       return 2;
       }
-    image->PrintSelf(std::cout, vtkIndent(4));
+    poly->PrintSelf(std::cout, vtkIndent(4));
   }
 
   return 0;
@@ -42,13 +37,10 @@ int main(int argc, char **argv)
 
 vtkSmartPointer<vtkImageData> readADIOSImage(const std::string &filename)
 {
-  vtkNew<vtkADIOSReader> reader;
+  vtkNew<vtkADIOSImageDataReader> reader;
+
   reader->SetFileName(filename);
-  reader->OpenAndReadMetadata();
-  reader->PrintSelf(std::cout, vtkIndent(1));
+  reader->Update();
 
-  vtkSmartPointer<vtkImageData> data(reader->ReadObject<vtkImageData>("/"));
-  reader->WaitForReads();
-
-  return data;
+  return reader->GetOutput();
 }

@@ -19,17 +19,33 @@
 
 #include <string>
 #include <vector>
+#include <utility>
 #include "ADIOSVarInfo.h"
+#include <adios_mpi.h>
 
 class ADIOSReader
 {
 public:
-  ADIOSReader(void);
+  ADIOSReader(MPI_Comm);
   ~ADIOSReader(void);
 
   // Description:
   // Open the ADIOS file and cache the variable names and scalar data
-  void InitializeFile(const std::string &fileName);
+  void OpenFile(const std::string &fileName);
+
+  // Description:
+  // Advance to the next available step.
+  // Returns the new step after advancing, -1 if EOS is reached, 
+  // End Of Stream is reached
+  int Advance(void);
+
+  // Description:
+  // Retrieve the total number of seps
+  void GetStepRange(int &tStart, int &tEnd) const;
+
+  // Description:
+  // Retrieve the total number of seps
+  int GetCurrentStep(void) const;
 
   // Description
   // Retrieve a list of scalars and thier associated metadata
