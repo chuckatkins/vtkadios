@@ -28,6 +28,17 @@
 #define DebugMacro(x)
 #endif
 
+// Use an internal ADIOS function for now so we can use the transform info
+extern "C" {
+int64_t adios_common_define_var (int64_t group_id, const char * name
+                                ,const char * path, enum ADIOS_DATATYPES type
+                                ,const char * dimensions
+                                ,const char * global_dimensions
+                                ,const char * local_offsets
+                            ,char *transform_type_str // NCSU ALACRITY-ADIOS
+                                );
+}
+
 static const int64_t INVALID_INT64 = std::numeric_limits<int64_t>::min();
 
 //----------------------------------------------------------------------------
@@ -146,13 +157,13 @@ void ADIOSWriter::DefineScalar(const std::string& path, const std::string& v)
 //----------------------------------------------------------------------------
 template<typename TN>
 void ADIOSWriter::DefineArray(const std::string& path,
-  const std::vector<size_t>& dims)
+  const std::vector<size_t>& dims, const std::string &xfm)
 {
-  this->DefineArray(path, dims, ADIOSUtilities::TypeNativeToVTK<TN>::T);
+  this->DefineArray(path, dims, ADIOSUtilities::TypeNativeToVTK<TN>::T, xfm);
 }
 #define INSTANTIATE(T) \
 template void ADIOSWriter::DefineArray<T>(const std::string& path, \
-  const std::vector<size_t>& dims);
+  const std::vector<size_t>& dims, const std::string &xfm);
 INSTANTIATE(int8_t)
 INSTANTIATE(int16_t)
 INSTANTIATE(int32_t)
@@ -168,7 +179,7 @@ INSTANTIATE(double)
 
 //----------------------------------------------------------------------------
 void ADIOSWriter::DefineArray(const std::string& path,
-  const std::vector<size_t>& dims, int vtkType)
+  const std::vector<size_t>& dims, int vtkType, const std::string &xfm)
 {
 
   this->Impl->TestDefine();
@@ -186,8 +197,9 @@ void ADIOSWriter::DefineArray(const std::string& path,
 
   DebugMacro("Define Array: " << path << " [" << ssDims.str() << "]");
   int id;
-  id = adios_define_var(this->Impl->Group, path.c_str(), "",
-    adiosType, ssDims.str().c_str(), NULL, NULL);
+  id = adios_common_define_var(this->Impl->Group, path.c_str(), "",
+    adiosType, ssDims.str().c_str(), NULL, NULL, 
+    xfm.empty() ? NULL : const_cast<char *>(xfm.c_str()));
   ADIOSUtilities::TestWriteErrorNe(-1, id);
   this->Impl->GroupSize += numBytes;
 }

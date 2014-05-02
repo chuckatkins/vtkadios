@@ -45,6 +45,7 @@ int main(int argc, char **argv)
     }
 
   writer->SetFileName(argv[2]);
+  writer->SetTransform("bzip2:9");
   writer->Update();
 
   return 0;

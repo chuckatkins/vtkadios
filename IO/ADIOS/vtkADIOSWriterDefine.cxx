@@ -43,7 +43,8 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkAbstractArray* v)
   std::vector<size_t> dims;
   dims.push_back(valueTmp->GetNumberOfComponents());
   dims.push_back(valueTmp->GetNumberOfTuples());
-  this->Writer->DefineArray(path, dims, valueTmp->GetDataType());
+  this->Writer->DefineArray(path, dims, valueTmp->GetDataType(),
+    this->Transform);
 }
 
 //----------------------------------------------------------------------------

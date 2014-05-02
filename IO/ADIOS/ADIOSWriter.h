@@ -44,12 +44,13 @@ public:
   // Description
   // Define arrays for later writing
   template<typename TN>
-  void DefineArray(const std::string& path, const std::vector<size_t>& dims);
+  void DefineArray(const std::string& path, const std::vector<size_t>& dims,
+    const std::string &xfm = "");
 
   // Description
   // Define arrays for later writing
   void DefineArray(const std::string& path, const std::vector<size_t>& dims,
-    int vtkType);
+    int vtkType, const std::string &xfm = "");
 
   // Description:
   // Open the vtk group in the ADIOS file for writing one timestep

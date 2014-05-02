@@ -15,7 +15,7 @@
 #include <cstring>
 #include <limits>
 #include <stdexcept>
-#include <iomanip>
+#include <iostream>
 
 #include "ADIOSWriter.h"
 
@@ -141,6 +141,7 @@ bool vtkADIOSWriter::DefineAndWrite(void)
     if(this->CurrentTimeStep != this->TimeSteps.end() &&
        this->RequestPiece == 0)
       {
+      vtkWarningMacro(<< "Writing data for time " << (*this->CurrentTimeStep)*1e6);
       this->Writer->WriteScalar<double>("/TimeStamp", *this->CurrentTimeStep);
       }
     this->Write("", data);

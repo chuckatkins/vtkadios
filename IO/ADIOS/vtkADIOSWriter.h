@@ -55,8 +55,11 @@ public:
 
   //BTX
   // Description:
-  // Get/Set the ADIOS transport method (default is "POSIX").  If called, it
-  // must be called BEFORE SetController.
+  // Get/Set the ADIOS transport method.  Current valid values are:
+  // "POSIX" (default), "MPI", "MPI_LUSTRE", "MPI_AGGREGATE", "VAR_MERGE",
+  // "Dataspaces", "DIMES", "PHDF5", and "NetCDF4". This is all dependent on
+  // the underlying ADIOS library and the support it was built with. If
+  // called, it must be called BEFORE SetController.
   vtkSetMacro(TransportMethod, const std::string&);
   vtkGetMacro(TransportMethod, const std::string&);
   //ETX
@@ -67,6 +70,17 @@ public:
   // called, it must be called BEFORE SetController
   vtkSetMacro(TransportArguments, const std::string&);
   vtkGetMacro(TransportArguments, const std::string&);
+  //ETX
+
+  //BTX
+  // Description:
+  // Get/Set the data transformation.  Currently valid values are:
+  // "" (default), "zlib", and "bzlib2".  Check the configuration of your
+  // ADIOS library to determine the supported transform.  If called, it
+  // must be called BEFORE the first step. The transform will be applied to
+  // all arrays
+  vtkSetMacro(Transform, const std::string&);
+  vtkGetMacro(Transform, const std::string&);
   //ETX
 
   //BTX
@@ -125,6 +139,7 @@ protected:
   std::string FileName;
   std::string TransportMethod;
   std::string TransportArguments;
+  std::string Transform;
   ADIOSWriter *Writer;
   bool FirstStep;
   int Rank;
