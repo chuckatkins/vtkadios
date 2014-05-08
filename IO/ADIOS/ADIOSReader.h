@@ -26,26 +26,21 @@
 class ADIOSReader
 {
 public:
-  ADIOSReader(MPI_Comm);
+  ADIOSReader(void);
   ~ADIOSReader(void);
+
+  // Description:
+  // Initialize the underlying ADIOS subsystem
+  static bool Initialize(MPI_Comm comm, const std::string &method = "BP",
+    const std::string &methodArgs = "");
 
   // Description:
   // Open the ADIOS file and cache the variable names and scalar data
   void OpenFile(const std::string &fileName);
 
   // Description:
-  // Advance to the next available step.
-  // Returns the new step after advancing, -1 if EOS is reached, 
-  // End Of Stream is reached
-  int Advance(void);
-
-  // Description:
   // Retrieve the total number of seps
   void GetStepRange(int &tStart, int &tEnd) const;
-
-  // Description:
-  // Retrieve the total number of seps
-  int GetCurrentStep(void) const;
 
   // Description
   // Retrieve a list of scalars and thier associated metadata
@@ -58,12 +53,12 @@ public:
   // Description:
   // Schedule array data to be read. Data will be read with ReadArrays
   template<typename T>
-  void ScheduleReadArray(const std::string &path, T *data);
+  void ScheduleReadArray(const std::string &path, T *data, int step);
 
   // Description:
   // Schedule array data to be read. Data will be read with ReadArrays
   template<typename T>
-  void ScheduleReadArray(int id, T *data);
+  void ScheduleReadArray(int id, T *data, int step);
 
   // Description:
   // Perform all scheduled array read operations

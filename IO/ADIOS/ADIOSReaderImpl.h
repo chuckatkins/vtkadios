@@ -24,12 +24,14 @@
 
 struct ADIOSReader::ADIOSReaderImpl
 {
-  ADIOSReaderImpl(MPI_Comm comm)
-  : File(NULL), Comm(comm)
+  ADIOSReaderImpl(void)
+  : File(NULL)
   { }
 
+  static MPI_Comm Comm;
+  static ADIOS_READ_METHOD Method;
+
   ADIOS_FILE* File;
-  MPI_Comm Comm;
 
   std::pair<int, int> StepRange;
   std::vector<ADIOSVarInfo*> Scalars;
@@ -37,4 +39,7 @@ struct ADIOSReader::ADIOSReaderImpl
   std::map<std::string, int> ArrayIds;
 };
 
+static const MPI_Comm INVALID_MPI_COMM = static_cast<MPI_Comm>(NULL);
+MPI_Comm ADIOSReader::ADIOSReaderImpl::Comm = INVALID_MPI_COMM;
+ADIOS_READ_METHOD ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_BP;
 #endif

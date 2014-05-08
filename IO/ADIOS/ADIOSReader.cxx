@@ -25,13 +25,13 @@
 typedef std::map<std::string, int> IdMap;
 
 //----------------------------------------------------------------------------
-ADIOSReader::ADIOSReader(MPI_Comm comm)
-: Impl(new ADIOSReaderImpl(comm))
+ADIOSReader::ADIOSReader(void)
+: Impl(new ADIOSReaderImpl)
 {
-  int err;
-
-  err = adios_read_init_method(ADIOS_READ_METHOD_BP, this->Impl->Comm, NULL);
-  ADIOSUtilities::TestReadErrorEq<int>(0, err);
+  if(ADIOSReader::ADIOSReaderImpl::Comm == INVALID_MPI_COMM)
+    {
+    throw std::runtime_error("ADIOS subsystem not yet initialized");
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -45,10 +45,50 @@ ADIOSReader::~ADIOSReader(void)
     }
 
   int rank = 0;
-  MPI_Comm_rank(this->Impl->Comm, &rank);
-  MPI_Barrier(this->Impl->Comm);
+  MPI_Comm_rank(ADIOSReader::ADIOSReaderImpl::Comm, &rank);
+  MPI_Barrier(ADIOSReader::ADIOSReaderImpl::Comm);
 
   adios_read_finalize_method(ADIOS_READ_METHOD_BP);
+}
+
+//----------------------------------------------------------------------------
+bool ADIOSReader::Initialize(MPI_Comm comm, const std::string& method,
+  const std::string &methodArgs)
+{
+  if(ADIOSReader::ADIOSReaderImpl::Comm != INVALID_MPI_COMM)
+    {
+    return ADIOSReader::ADIOSReaderImpl::Comm == comm;
+    }
+
+  if(method == "BP")
+    {
+    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_BP;
+    }
+  else if(method == "BP_AGGREGATE")
+    {
+    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_BP_AGGREGATE;
+    }
+  else if(method == "DATASPACES")
+    {
+    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_DATASPACES;
+    }
+  else if(method == "DIMES")
+    {
+    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_DIMES;
+    }
+  else if(method == "FLEXPATH")
+    {
+    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_FLEXPATH;
+    }
+  else
+    {
+    throw std::runtime_error("Unsupported read method");
+    }
+
+  int err;
+  err = adios_read_init_method(ADIOSReader::ADIOSReaderImpl::Method,
+    ADIOSReader::ADIOSReaderImpl::Comm, methodArgs.c_str());
+  ADIOSUtilities::TestReadErrorEq<int>(0, err);
 }
 
 //----------------------------------------------------------------------------
@@ -64,7 +104,8 @@ void ADIOSReader::OpenFile(const std::string &fileName)
 
   // Open the file
   this->Impl->File = adios_read_open(fileName.c_str(),
-    ADIOS_READ_METHOD_BP, this->Impl->Comm, ADIOS_LOCKMODE_NONE, 0);
+    ADIOSReader::ADIOSReaderImpl::Method, ADIOSReader::ADIOSReaderImpl::Comm,
+    ADIOS_LOCKMODE_NONE, 0);
   ADIOSUtilities::TestReadErrorNe<void*>(NULL, this->Impl->File);
 
   // Poplulate step information
@@ -93,31 +134,10 @@ void ADIOSReader::OpenFile(const std::string &fileName)
 }
 
 //----------------------------------------------------------------------------
-int ADIOSReader::Advance(void)
-{
-  int err;
-
-  adios_release_step(this->Impl->File);
-  err = adios_advance_step(this->Impl->File, 0, -1);
-  if(err == err_end_of_stream)
-    {
-    return -1;
-    }
-  return this->GetCurrentStep();
-}
-
-
-//----------------------------------------------------------------------------
 void ADIOSReader::GetStepRange(int &tS, int &tE) const
 {
   tS = this->Impl->StepRange.first;
   tE = this->Impl->StepRange.second;
-}
-
-//----------------------------------------------------------------------------
-int ADIOSReader::GetCurrentStep(void) const
-{
-  return this->Impl->File->current_step;
 }
 
 //----------------------------------------------------------------------------
@@ -140,31 +160,31 @@ const std::vector<ADIOSVarInfo*>& ADIOSReader::GetArrays(void) const
 
 //----------------------------------------------------------------------------
 template<typename T>
-void ADIOSReader::ScheduleReadArray(const std::string &path, T *data)
+void ADIOSReader::ScheduleReadArray(const std::string &path, T *data, int step)
 {
   IdMap::iterator id = this->Impl->ArrayIds.find(path);
   if(id != this->Impl->ArrayIds.end())
     {
     throw std::runtime_error("Array " + path + " not found");
     }
-  this->ScheduleReadArray<T>(id->second, data);
+  this->ScheduleReadArray<T>(id->second, data, step);
 }
 
 //----------------------------------------------------------------------------
 template<typename T>
-void ADIOSReader::ScheduleReadArray(int id, T *data)
+void ADIOSReader::ScheduleReadArray(int id, T *data, int step)
 {
   int err;
   err = adios_schedule_read_byid(this->Impl->File, NULL, id,
-    0, 1, data);
+    step, 1, data);
   ADIOSUtilities::TestReadErrorEq(0, err);
 }
 
 //----------------------------------------------------------------------------
 // Instantiations for the ScheduleReadArray implementation
 #define INSTANTIATE(T) \
-template void ADIOSReader::ScheduleReadArray<T>(const std::string&, T*); \
-template void ADIOSReader::ScheduleReadArray<T>(int, T*);
+template void ADIOSReader::ScheduleReadArray<T>(const std::string&, T*, int); \
+template void ADIOSReader::ScheduleReadArray<T>(int, T*, int);
 INSTANTIATE(int8_t)
 INSTANTIATE(int16_t)
 INSTANTIATE(int32_t)
