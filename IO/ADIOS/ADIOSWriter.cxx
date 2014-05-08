@@ -30,16 +30,14 @@
 
 // Use an internal ADIOS function for now so we can use the transform info
 extern "C" {
-int64_t adios_common_define_var (int64_t group_id, const char * name
-                                ,const char * path, enum ADIOS_DATATYPES type
-                                ,const char * dimensions
-                                ,const char * global_dimensions
-                                ,const char * local_offsets
-                            ,char *transform_type_str // NCSU ALACRITY-ADIOS
-                                );
+  int64_t adios_common_define_var (int64_t group_id, const char * name,
+    const char * path, enum ADIOS_DATATYPES type, const char * dimensions,
+    const char * global_dimensions, const char * local_offsets,
+    char *transform_type_str);
 }
 
 static const int64_t INVALID_INT64 = std::numeric_limits<int64_t>::min();
+static const MPI_Comm INVALID_MPI_COMM = static_cast<MPI_Comm>(NULL);
 
 //----------------------------------------------------------------------------
 struct ADIOSWriter::ADIOSWriterImpl
@@ -59,45 +57,52 @@ struct ADIOSWriter::ADIOSWriterImpl
       }
   }
 
-  MPI_Comm Comm;
+  static MPI_Comm Comm;
   bool IsWriting;
   int64_t File;
   int64_t Group;
   uint64_t GroupSize;
   uint64_t TotalSize;
 };
+MPI_Comm ADIOSWriter::ADIOSWriterImpl::Comm = INVALID_MPI_COMM;
 
 //----------------------------------------------------------------------------
-ADIOSWriter::ADIOSWriter(void)
+ADIOSWriter::ADIOSWriter(const std::string &transport,
+  const std::string &transportArgs)
 : Impl(new ADIOSWriterImpl)
 {
-}
-
-//----------------------------------------------------------------------------
-bool ADIOSWriter::Initialize(MPI_Comm comm, const std::string &transport,
-  const std::string &transportArgs)
-{
-  if(this->Impl->Group != INVALID_INT64)
+  if(ADIOSWriterImpl::Comm == INVALID_MPI_COMM)
     {
-    return false;
+    throw std::runtime_error("ADIOS writing subsystem not initialized");
     }
-  this->Impl->Comm = comm;
 
   int err;
-
-  err = adios_init_noxml(this->Impl->Comm);
-  ADIOSUtilities::TestWriteErrorEq(0, err);
-
-  err = adios_allocate_buffer(ADIOS_BUFFER_ALLOC_NOW, 100);
-  ADIOSUtilities::TestWriteErrorEq(0, err);
 
   err = adios_declare_group(&this->Impl->Group, "VTK", "",
     adios_flag_yes);
   ADIOSUtilities::TestWriteErrorEq(0, err);
 
-  //err = adios_select_method(this->Impl->Group, "POSIX", "", "");
   err = adios_select_method(this->Impl->Group, transport.c_str(),
     transportArgs.c_str(), "");
+  ADIOSUtilities::TestWriteErrorEq(0, err);
+}
+
+//----------------------------------------------------------------------------
+bool ADIOSWriter::Initialize(MPI_Comm comm)
+{
+  if(ADIOSWriterImpl::Comm)
+    {
+    // Already initialized
+    return ADIOSWriterImpl::Comm == comm;
+    }
+  ADIOSWriterImpl::Comm = comm;
+
+  int err;
+
+  err = adios_init_noxml(ADIOSWriterImpl::Comm);
+  ADIOSUtilities::TestWriteErrorEq(0, err);
+
+  err = adios_allocate_buffer(ADIOS_BUFFER_ALLOC_NOW, 100);
   ADIOSUtilities::TestWriteErrorEq(0, err);
 }
 
@@ -105,12 +110,11 @@ bool ADIOSWriter::Initialize(MPI_Comm comm, const std::string &transport,
 ADIOSWriter::~ADIOSWriter(void)
 {
   this->Close();
+  delete this->Impl;
 
   int rank = 0;
-  MPI_Comm_rank(this->Impl->Comm, &rank);
+  MPI_Comm_rank(ADIOSWriterImpl::Comm, &rank);
   adios_finalize(rank);
-
-  delete this->Impl;
 }
 
 //----------------------------------------------------------------------------
@@ -212,7 +216,7 @@ void ADIOSWriter::Open(const std::string &fileName, bool append)
   const char *mode = append ? "a" : "w";
   
   err = adios_open(&this->Impl->File, "VTK", fileName.c_str(), append?"a":"w",
-    this->Impl->Comm);
+    ADIOSWriterImpl::Comm);
   ADIOSUtilities::TestWriteErrorEq(0, err);
 
   err = adios_group_size(this->Impl->File, this->Impl->GroupSize,
@@ -232,8 +236,8 @@ void ADIOSWriter::Close(void)
   this->Impl->File = INVALID_INT64;
 
   int rank = 0;
-  MPI_Comm_rank(this->Impl->Comm, &rank);
-  MPI_Barrier(this->Impl->Comm);
+  MPI_Comm_rank(ADIOSWriterImpl::Comm, &rank);
+  MPI_Barrier(ADIOSWriterImpl::Comm);
 }
 
 //----------------------------------------------------------------------------

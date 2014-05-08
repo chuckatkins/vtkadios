@@ -24,13 +24,14 @@
 class ADIOSWriter
 {
 public:
-  ADIOSWriter(void);
+  ADIOSWriter(const std::string &transport = "POSIX",
+    const std::string &transportArgs = "");
+
   ~ADIOSWriter(void);
 
   // Description:
   // Initialize the underlying ADIOS subsystem
-  bool Initialize(MPI_Comm comm, const std::string &transport = "POSIX",
-    const std::string &transportArgs = "");
+  static bool Initialize(MPI_Comm comm);
 
   // Description
   // Define scalars for later writing

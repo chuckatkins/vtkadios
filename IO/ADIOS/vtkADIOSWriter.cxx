@@ -89,16 +89,16 @@ void vtkADIOSWriter::SetController(vtkMPIController *controller)
     return;
     }
 
+  this->Controller = controller;
+  ADIOSWriter::Initialize(*static_cast<vtkMPICommunicator *>(
+      this->Controller->GetCommunicator())->GetMPIComm()->GetHandle());
+
   if(this->Writer)
     {
     delete this->Writer;
     }
-  this->Controller = controller;
-  this->Writer = new ADIOSWriter;
-  this->Writer->Initialize(
-    *static_cast<vtkMPICommunicator *>(
-      this->Controller->GetCommunicator())->GetMPIComm()->GetHandle(),
-    this->TransportMethod, this->TransportArguments);
+  this->Writer = new ADIOSWriter(this->TransportMethod,
+    this->TransportArguments);
   this->NumberOfPieces = this->Controller->GetNumberOfProcesses();
   this->RequestPiece = this->Controller->GetLocalProcessId();
   this->FirstStep = true;
