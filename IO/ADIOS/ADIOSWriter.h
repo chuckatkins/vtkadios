@@ -34,6 +34,11 @@ public:
   static bool Initialize(MPI_Comm comm);
 
   // Description
+  // Define scalar attributes
+  template<typename TN>
+  void DefineAttribute(const std::string& path, const TN& value);
+
+  // Description
   // Define scalars for later writing
   template<typename TN>
   void DefineScalar(const std::string& path);

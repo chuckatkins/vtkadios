@@ -133,6 +133,8 @@ bool vtkADIOSWriter::DefineAndWrite(void)
       {
       if(this->RequestPiece == 0)
         {
+        this->Writer->DefineAttribute<int>("/NumberOfPieces",
+          this->NumberOfPieces);
         this->Writer->DefineScalar<double>("/TimeStamp");
         }
       this->Define("", data);

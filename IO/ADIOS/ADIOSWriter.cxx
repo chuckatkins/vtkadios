@@ -119,6 +119,37 @@ ADIOSWriter::~ADIOSWriter(void)
 
 //----------------------------------------------------------------------------
 template<typename TN>
+void ADIOSWriter::DefineAttribute(const std::string& path, const TN& value)
+{
+  DebugMacro( "Define Attribute: " << path << ": " << value);
+
+  // ADIOS attributes are stored as thier "stringified" versions :-(
+  std::stringstream valueStr;
+  valueStr << value;
+
+  int err;
+  err = adios_define_attribute(this->Impl->Group, path.c_str(), "",
+    ADIOSUtilities::TypeNativeToADIOS<TN>::T,
+    const_cast<char*>(valueStr.str().c_str()), "");
+  ADIOSUtilities::TestWriteErrorEq(0, err);
+}
+#define INSTANTIATE(T) \
+template void ADIOSWriter::DefineAttribute<T>(const std::string&, const T&);
+INSTANTIATE(int8_t)
+INSTANTIATE(int16_t)
+INSTANTIATE(int32_t)
+INSTANTIATE(int64_t)
+INSTANTIATE(uint8_t)
+INSTANTIATE(uint16_t)
+INSTANTIATE(uint32_t)
+INSTANTIATE(uint64_t)
+INSTANTIATE(vtkIdType)
+INSTANTIATE(float)
+INSTANTIATE(double)
+#undef INSTANTIATE
+
+//----------------------------------------------------------------------------
+template<typename TN>
 void ADIOSWriter::DefineScalar(const std::string& path)
 {
   DebugMacro( "Define Scalar: " << path);
