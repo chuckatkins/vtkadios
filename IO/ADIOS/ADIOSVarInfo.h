@@ -36,7 +36,10 @@ public:
   void GetDims(std::vector<size_t>& dims) const;
 
   template<typename T>
-  T GetValue(void) const;
+  T GetValue(int step = 0) const;
+
+  template<typename T>
+  const T* GetAllValues(void) const;
 
 private:
   struct ADIOSVarInfoImpl;

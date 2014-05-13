@@ -159,11 +159,13 @@ void vtkADIOSWriter::Write(const std::string& path,
     this->Write(path+"/Points", p->GetData());
     }
 
-  vtkCellArray *ca;
-  vtkUnsignedCharArray *cta;
-  if((ca = valueTmp->GetCells()) && (cta = valueTmp->GetCellTypesArray()))
+  vtkUnsignedCharArray *cta = valueTmp->GetCellTypesArray();
+  vtkIdTypeArray *cla = valueTmp->GetCellLocationsArray();
+  vtkCellArray *ca = valueTmp->GetCells();
+  if(cta && cla && ca)
     {
-    this->Write(path+"/Cells", ca);
     this->Write(path+"/CellTypes", cta);
+    this->Write(path+"/CellLocations", cla);
+    this->Write(path+"/Cells", ca);
     }
 }

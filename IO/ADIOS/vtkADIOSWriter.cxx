@@ -61,10 +61,6 @@ vtkADIOSWriter::vtkADIOSWriter()
   std::memset(this->WholeExtent, 0, 6*sizeof(int));
   this->SetNumberOfInputPorts(1);
   this->SetNumberOfOutputPorts(0);
-
-  // Initialize the ADIOS subsystem
-  this->SetController(vtkMPIController::SafeDownCast(
-    vtkMultiProcessController::GetGlobalController()));
 }
 
 //----------------------------------------------------------------------------
@@ -129,19 +125,30 @@ bool vtkADIOSWriter::DefineAndWrite(void)
 
   try
     {
+    // Things to do on the first step, before writing any data
     if(this->FirstStep)
       {
+      // 1: Rank 0 must declare any attributes
       if(this->RequestPiece == 0)
         {
         this->Writer->DefineAttribute<int>("/NumberOfPieces",
           this->NumberOfPieces);
         this->Writer->DefineScalar<double>("/TimeStamp");
         }
+
+      // 2: Before any data can be writen, it's structure must be declared
       this->Define("", data);
       }
+
+    // Make sure we're within time bounds
+    if(this->CurrentTimeStep == this->TimeSteps.end())
+      {
+      vtkErrorMacro(<< "All timesteps have been exhausted");
+      return false;
+      }
+
     this->OpenFile();
-    if(this->CurrentTimeStep != this->TimeSteps.end() &&
-       this->RequestPiece == 0)
+    if(this->RequestPiece == 0)
       {
       vtkWarningMacro(<< "Writing data for time " << (*this->CurrentTimeStep)*1e6);
       this->Writer->WriteScalar<double>("/TimeStamp", *this->CurrentTimeStep);
@@ -192,6 +199,17 @@ int vtkADIOSWriter::FillInputPortInformation(int port, vtkInformation *info)
 int vtkADIOSWriter::ProcessRequest(vtkInformation* request,
   vtkInformationVector** input, vtkInformationVector* output)
 {
+  // Make sure the ADIOS subsystem is initialized before processing any
+  // srt of request.  If no controller has been specified then assume the
+  //global MPI Controller
+  if(!this->Controller)
+    {
+    this->SetController(vtkMPIController::SafeDownCast(
+      vtkMultiProcessController::GetGlobalController()));
+    }
+
+  // Now process the request
+
   if(request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
     {
     return this->RequestInformation(request, input, output);

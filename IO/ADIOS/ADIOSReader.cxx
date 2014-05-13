@@ -12,6 +12,8 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+#include <cstdlib> // std::free
+
 #include <stdexcept>
 #include <map>
 #include <utility>
@@ -19,10 +21,73 @@
 #include "ADIOSReader.h"
 #include "ADIOSReaderImpl.h"
 #include "ADIOSUtilities.h"
-
 #include <adios_read.h>
 
 typedef std::map<std::string, int> IdMap;
+
+//----------------------------------------------------------------------------
+struct ADIOSAttributeImpl
+{
+  ADIOSAttributeImpl(int id, const char* name, int size, ADIOS_DATATYPES type,
+    void* data)
+  : Id(id), Name(name), Size(size), Type(type), Data(data)
+  { }
+
+  ~ADIOSAttributeImpl(void)
+  {
+    // Cleanup memory that was previously alocated by ADIOS with malloc
+    if(this->Data)
+      {
+      std::free(this->Data);
+      }
+  }
+
+  int Id;
+  std::string Name;
+  int Size;
+  ADIOS_DATATYPES Type;
+  void *Data;
+};
+
+ADIOSAttribute::ADIOSAttribute(ADIOSAttributeImpl *impl)
+: Impl(impl)
+{ }
+
+ADIOSAttribute::~ADIOSAttribute(void)
+{ delete this->Impl; }
+
+const std::string& ADIOSAttribute::GetName(void) const
+{ return this->Impl->Name; }
+
+int ADIOSAttribute::GetId(void) const
+{ return this->Impl->Id; }
+
+ADIOS_DATATYPES ADIOSAttribute::GetType(void) const
+{ return this->Impl->Type; }
+
+template<typename TN>
+TN ADIOSAttribute::GetValue(void) const
+{
+  if(ADIOSUtilities::TypeNativeToADIOS<TN>::T != this->Impl->Type)
+    {
+    throw std::invalid_argument("Wrong type");
+    }
+  return *reinterpret_cast<TN*>(this->Impl->Data);
+}
+
+// Instantiations for the ADIOSAttribute::GetValue implementation
+#define INSTANTIATE(T) template T ADIOSAttribute::GetValue<T>(void) const;
+INSTANTIATE(int8_t)
+INSTANTIATE(int16_t)
+INSTANTIATE(int32_t)
+INSTANTIATE(int64_t)
+INSTANTIATE(uint8_t)
+INSTANTIATE(uint16_t)
+INSTANTIATE(uint32_t)
+INSTANTIATE(uint64_t)
+INSTANTIATE(float)
+INSTANTIATE(double)
+#undef INSTANTIATE
 
 //----------------------------------------------------------------------------
 ADIOSReader::ADIOSReader(void)
@@ -131,6 +196,21 @@ void ADIOSReader::OpenFile(const std::string &fileName)
         this->Impl->ArrayIds.insert(std::make_pair(name, i));
         }
     }
+
+  // Polulate the attribute information
+  for(int id = 0; id < this->Impl->File->nattrs; ++id)
+    {
+    ADIOS_DATATYPES type;
+    int size;
+    void *data;
+    adios_get_attr(this->Impl->File, this->Impl->File->attr_namelist[id],
+      &type, &size, &data);
+    this->Impl->Attributes.push_back(new ADIOSAttribute(
+      new ADIOSAttributeImpl(id, this->Impl->File->attr_namelist[id], size,
+      type, data)));
+    }
+
+  
 }
 
 //----------------------------------------------------------------------------
@@ -147,6 +227,12 @@ bool ADIOSReader::IsOpen(void) const
 }
 
 //----------------------------------------------------------------------------
+const std::vector<ADIOSAttribute*>& ADIOSReader::GetAttributes(void) const
+{
+  return this->Impl->Attributes;
+}
+
+//----------------------------------------------------------------------------
 const std::vector<ADIOSVarInfo*>& ADIOSReader::GetScalars(void) const
 {
   return this->Impl->Scalars;
@@ -160,22 +246,32 @@ const std::vector<ADIOSVarInfo*>& ADIOSReader::GetArrays(void) const
 
 //----------------------------------------------------------------------------
 template<typename T>
-void ADIOSReader::ScheduleReadArray(const std::string &path, T *data, int step)
+void ADIOSReader::ScheduleReadArray(const std::string &path, T *data, int step,
+  int block)
 {
   IdMap::iterator id = this->Impl->ArrayIds.find(path);
   if(id != this->Impl->ArrayIds.end())
     {
     throw std::runtime_error("Array " + path + " not found");
     }
-  this->ScheduleReadArray<T>(id->second, data, step);
+  this->ScheduleReadArray<T>(id->second, data, step, block);
 }
 
 //----------------------------------------------------------------------------
 template<typename T>
-void ADIOSReader::ScheduleReadArray(int id, T *data, int step)
+void ADIOSReader::ScheduleReadArray(int id, T *data, int step, int block)
 {
   int err;
-  err = adios_schedule_read_byid(this->Impl->File, NULL, id,
+  ADIOS_SELECTION *sel;
+
+  // Use the MPI rank as the block id if not specified
+  if(block == -1)
+    {
+    MPI_Comm_rank(ADIOSReader::ADIOSReaderImpl::Comm, &block);
+    }
+  sel = adios_selection_writeblock(block);
+
+  err = adios_schedule_read_byid(this->Impl->File, sel, id,
     step, 1, data);
   ADIOSUtilities::TestReadErrorEq(0, err);
 }
@@ -183,8 +279,8 @@ void ADIOSReader::ScheduleReadArray(int id, T *data, int step)
 //----------------------------------------------------------------------------
 // Instantiations for the ScheduleReadArray implementation
 #define INSTANTIATE(T) \
-template void ADIOSReader::ScheduleReadArray<T>(const std::string&, T*, int); \
-template void ADIOSReader::ScheduleReadArray<T>(int, T*, int);
+template void ADIOSReader::ScheduleReadArray<T>(const std::string&, T*, int, int); \
+template void ADIOSReader::ScheduleReadArray<T>(int, T*, int, int);
 INSTANTIATE(int8_t)
 INSTANTIATE(int16_t)
 INSTANTIATE(int32_t)

@@ -15,12 +15,15 @@
 #ifndef _ADIOSReaderImpl_h
 #define _ADIOSReaderImpl_h
 
-#include "ADIOSReader.h"
-#include "ADIOSVarInfo.h"
-#include <vector>
 #include <map>
 #include <utility>
+#include <vector>
+
 #include <adios_read.h>
+
+#include "ADIOSReader.h"
+#include "ADIOSVarInfo.h"
+#include "ADIOSAttribute.h"
 
 struct ADIOSReader::ADIOSReaderImpl
 {
@@ -34,6 +37,7 @@ struct ADIOSReader::ADIOSReaderImpl
   ADIOS_FILE* File;
 
   std::pair<int, int> StepRange;
+  std::vector<ADIOSAttribute*> Attributes;
   std::vector<ADIOSVarInfo*> Scalars;
   std::vector<ADIOSVarInfo*> Arrays;
   std::map<std::string, int> ArrayIds;

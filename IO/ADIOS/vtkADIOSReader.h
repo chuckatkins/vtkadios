@@ -26,6 +26,7 @@
 #include <vtkAlgorithm.h>
 #include <vtkSetGet.h>
 #include <vtkSmartPointer.h>
+#include <vtkMPIController.h>
 
 #include "vtkIOADIOSModule.h" // For export macro
 #include "vtkADIOSDirTree.h"
@@ -56,6 +57,30 @@ public:
   vtkGetMacro(FileName, const std::string&);  
   //ETX
   
+  //BTX
+  // Description:
+  // Get/Set the ADIOS read method. Check the configuration of your
+  // ADIOS library to determine the supported transform.  If called, it
+  // must be called BEFORE the first SetController.
+  vtkSetMacro(Method, const std::string&);  
+  vtkGetMacro(Method, const std::string&);  
+  //ETX
+  
+  //BTX
+  // Description:
+  // Get/Set arguments to the ADIOS read method. Check the configuration of your
+  // ADIOS library to determine the supported transform.  If called, it
+  // must be called BEFORE the first SetController.
+  vtkSetMacro(MethodArgs, const std::string&);  
+  vtkGetMacro(MethodArgs, const std::string&);  
+  //ETX
+  
+  //BTX
+  // Description:
+  // Set the MPI controller.
+  void SetController(vtkMPIController*);
+  //ETX
+
   // Description:
   // The main interface which triggers the reader to start
   virtual int ProcessRequest(vtkInformation*, vtkInformationVector**,
@@ -89,10 +114,14 @@ protected:
   void ReadObject(const vtkADIOSDirTree *dir, vtkDataSet* data);
   void ReadObject(const vtkADIOSDirTree *dir, vtkImageData* data);
   void ReadObject(const vtkADIOSDirTree *dir, vtkPolyData* data);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkUnstructuredGrid* data);
 
   std::string FileName;
+  std::string Method;
+  std::string MethodArgs;
   vtkADIOSDirTree Tree;
-  ADIOSReader Reader;
+  ADIOSReader *Reader;
+  vtkSmartPointer<vtkMPIController> Controller;
 
   vtkADIOSReader();
   virtual ~vtkADIOSReader();
@@ -100,23 +129,23 @@ protected:
 protected:
   // Used to implement vtkAlgorithm
 
-  bool AdvanceToRequestStep(void);
+  int FillOutputPortInformation(int, vtkInformation*);
 
-  virtual int FillOutputPortInformation(int, vtkInformation*) = 0;
-
-  virtual bool RequestInformation(vtkInformation *request,
+  bool RequestInformation(vtkInformation *request,
     vtkInformationVector **input, vtkInformationVector *output);
-  virtual bool RequestUpdateExtent(vtkInformation *request,
+  bool RequestUpdateExtent(vtkInformation *request,
     vtkInformationVector **input, vtkInformationVector *output);
-  virtual bool RequestUpdateTime(vtkInformation *request,
-    vtkInformationVector **input, vtkInformationVector *output);
-  //virtual bool RequestUpdateTimeDependentInformation(vtkInformation *request,
-  //  vtkInformationVector **input, vtkInformationVector *output);
-  virtual bool RequestData(vtkInformation *request,
+  bool RequestData(vtkInformation *request,
     vtkInformationVector **input, vtkInformationVector *output);
 
-  double RequestStepPrev;
+  int NumberOfPieces;
+  std::vector<double> TimeSteps;
+  std::map<double, size_t> TimeStepsIndex;
+
   double RequestStep;
+  int RequestStepIndex;
+  int RequestNumberOfPieces;
+  int RequestPiece;
   vtkSmartPointer<vtkDataObject> Output;
 
 private:
@@ -128,6 +157,7 @@ private:
 template<> T* vtkADIOSReader::ReadObject<T>(const std::string& path);
 DECLARE_EXPLICIT(vtkImageData)
 DECLARE_EXPLICIT(vtkPolyData)
+DECLARE_EXPLICIT(vtkUnstructuredGrid)
 #undef DECLARE_EXPLICIT
 
 #endif

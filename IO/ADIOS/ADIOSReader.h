@@ -21,6 +21,7 @@
 #include <vector>
 #include <utility>
 #include "ADIOSVarInfo.h"
+#include "ADIOSAttribute.h"
 #include <adios_mpi.h>
 
 class ADIOSReader
@@ -42,23 +43,32 @@ public:
   // Retrieve the total number of seps
   void GetStepRange(int &tStart, int &tEnd) const;
 
-  // Description
+  // Description:
+  // Retrieve a list of attributes
+  const std::vector<ADIOSAttribute*>& GetAttributes(void) const;
+
+  // Description:
   // Retrieve a list of scalars and thier associated metadata
   const std::vector<ADIOSVarInfo*>& GetScalars(void) const;
 
-  // Description
+  // Description:
   // Retrieve a list of arrays and thier associated metadata
   const std::vector<ADIOSVarInfo*>& GetArrays(void) const;
 
   // Description:
-  // Schedule array data to be read. Data will be read with ReadArrays
+  // Schedule array data to be read. Data will be read with ReadArrays.
+  // step specified the time step index to read and block specifies the
+  // write block index to read (-1 means use whatever your current mpi rank is)
   template<typename T>
-  void ScheduleReadArray(const std::string &path, T *data, int step);
+  void ScheduleReadArray(const std::string &path, T *data, int step,
+    int block=-1);
 
   // Description:
-  // Schedule array data to be read. Data will be read with ReadArrays
+  // Schedule array data to be read. Data will be read with ReadArrays.
+  // step specified the time step index to read and block specifies the
+  // write block index to read (-1 means use whatever your current mpi rank is)
   template<typename T>
-  void ScheduleReadArray(int id, T *data, int step);
+  void ScheduleReadArray(int id, T *data, int step, int block=-1);
 
   // Description:
   // Perform all scheduled array read operations

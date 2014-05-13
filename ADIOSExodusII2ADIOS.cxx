@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     }
 
   writer->SetFileName(argv[2]);
-  writer->SetTransform("bzip2:1");
+  writer->SetTransform("zlib:1");
   writer->Update();
 
   return 0;

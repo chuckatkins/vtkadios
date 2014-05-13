@@ -157,11 +157,13 @@ void vtkADIOSWriter::Define(const std::string& path,
     this->Define(path+"/Points", p->GetData());
     }
 
-  vtkCellArray *ca;
-  vtkUnsignedCharArray *cta;
-  if((ca = valueTmp->GetCells()) && (cta = valueTmp->GetCellTypesArray()))
+  vtkUnsignedCharArray *cta = valueTmp->GetCellTypesArray();
+  vtkIdTypeArray *cla = valueTmp->GetCellLocationsArray();
+  vtkCellArray *ca = valueTmp->GetCells();
+  if(cta && cla && ca)
     {
-    this->Define(path+"/Cells", ca);
     this->Define(path+"/CellTypes", cta);
+    this->Define(path+"/CellLocations", cla);
+    this->Define(path+"/Cells", ca);
     }
 }

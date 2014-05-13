@@ -9,12 +9,12 @@ set(vtkADIOSIO_SOURCES
 
   ADIOSUtilities.h            ADIOSUtilities.cxx
 
-  #ADIOSVarInfo.h              ADIOSVarInfo.cxx
-  #ADIOSReader.h               ADIOSReader.cxx
-  #ADIOSReaderImpl.h
+  ADIOSVarInfo.h              ADIOSVarInfo.cxx
+  ADIOSReader.h               ADIOSReader.cxx
+  ADIOSReaderImpl.h
 
-  #vtkADIOSDirTree.h           vtkADIOSDirTree.cxx
-  #vtkADIOSReader.h            vtkADIOSReader.cxx
+  vtkADIOSDirTree.h           vtkADIOSDirTree.cxx
+  vtkADIOSReader.h            vtkADIOSReader.cxx
   #vtkADIOSImageDataReader.h   vtkADIOSImageDataReader.cxx
   #vtkADIOSPolyDataReader.h    vtkADIOSPolyDataReader.cxx
 

@@ -19,6 +19,15 @@
 
 #include <vtkObjectFactory.h>
 #include <vtkType.h>
+#include <vtkInformation.h>
+#include <vtkInformationVector.h>
+#include <vtkDemandDrivenPipeline.h>
+#include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkMPIController.h>
+#include <vtkMPI.h>
+
+#include <vtkMultiBlockDataSet.h>
+#include <vtkMultiPieceDataSet.h>
 #include <vtkDataArray.h>
 #include <vtkCellArray.h>
 #include <vtkPoints.h>
@@ -27,10 +36,7 @@
 #include <vtkPointData.h>
 #include <vtkImageData.h>
 #include <vtkPolyData.h>
-#include <vtkInformation.h>
-#include <vtkInformationVector.h>
-#include <vtkDemandDrivenPipeline.h>
-#include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkUnstructuredGrid.h>
 
 #include "vtkADIOSReader.h"
 #include "ADIOSVarInfo.h"
@@ -55,7 +61,9 @@ const double INVALID_STEP = std::numeric_limits<double>::min();
 //----------------------------------------------------------------------------
 
 vtkADIOSReader::vtkADIOSReader()
-: vtkAlgorithm(), Output(NULL)
+: FileName(""), Method("BP"), MethodArgs(""), Reader(NULL), NumberOfPieces(-1),
+  Output(NULL),
+  vtkAlgorithm()
 {
   this->SetNumberOfInputPorts(0);
   this->SetNumberOfOutputPorts(1);
@@ -64,6 +72,36 @@ vtkADIOSReader::vtkADIOSReader()
 //----------------------------------------------------------------------------
 vtkADIOSReader::~vtkADIOSReader()
 {
+  delete this->Reader;
+}
+
+//----------------------------------------------------------------------------
+void vtkADIOSReader::SetController(vtkMPIController *controller)
+{
+  if(!controller)
+    {
+    vtkErrorMacro("ADIOS Reader can only be used with MPI");
+    return;
+    }
+
+  this->Controller = controller;
+  ADIOSReader::Initialize(*static_cast<vtkMPICommunicator *>(
+    this->Controller->GetCommunicator())->GetMPIComm()->GetHandle(),
+    this->Method, this->MethodArgs);
+
+  if(this->Reader)
+    {
+    delete this->Reader;
+    }
+  this->Reader = new ADIOSReader;
+}
+
+//----------------------------------------------------------------------------
+int vtkADIOSReader::FillOutputPortInformation(
+  int vtkNotUsed(port), vtkInformation* info)
+{
+  info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkMultiBlockDataSet");
+  return 1;
 }
 
 //----------------------------------------------------------------------------
@@ -75,7 +113,6 @@ int vtkADIOSReader::ProcessRequest(vtkInformation* request,
     return false;
     }
 
-  /* Request "static" information i.e. num timesteps, max extents, num pieces*/
   if(request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
     {
     return this->RequestInformation(request, input, output);
@@ -86,25 +123,9 @@ int vtkADIOSReader::ProcessRequest(vtkInformation* request,
     return this->RequestUpdateExtent(request, input, output);
     }
 
-  if(request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_TIME()))
-    {
-    return this->RequestUpdateTime(request, input, output);
-    }
-
-  /* TODO: Deal with later
-  if(request->Has(vtkDemandDrivenPipeline::REQUEST_UPDATE_TIME_DEPENDENT_INFORMATION()))
-    {
-    return this->RequestUpdateTimeDependentInformation(request, input, output);
-    }
-  */
-
   if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
     {
     this->Output = NULL;
-    if(!this->AdvanceToRequestStep())
-      {
-      return false;
-      }
     return this->RequestData(request, input, output);
     }
 
@@ -112,43 +133,72 @@ int vtkADIOSReader::ProcessRequest(vtkInformation* request,
 }
 
 //----------------------------------------------------------------------------
-bool vtkADIOSReader::AdvanceToRequestStep(void)
-{
-  if(this->Reader.GetCurrentStep() >= this->RequestStep)
-    {
-    return true;
-    }
-
-  int step;
-  while((step = this->Reader.Advance()) != -1 && step < this->RequestStep);
-  if(step == -1)
-    {
-    return false;
-    }
-
-  return true;
-}
-
-//----------------------------------------------------------------------------
 bool vtkADIOSReader::RequestInformation(vtkInformation *req,
   vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
 {
-  int nSteps, tStart, tEnd;
   vtkInformation* outInfo = output->GetInformationObject(0);
+  outInfo->Set(vtkAlgorithm::CAN_HANDLE_PIECE_REQUEST(), 1);
 
-  this->Reader.GetStepRange(tStart, tEnd);
-  nSteps = tEnd - tStart + 1;
-
-  double *tSteps = new double[nSteps];
-  for(int i = 0; i < nSteps; ++i)
+  // Rank 0 reads attributes and time steps and sends to all other ranks
+  if(this->Controller->GetLocalProcessId() == 0)
     {
-    tSteps[i] = tStart + i;
+    // 1: Retrieve the necessary attributes
+    const std::vector<ADIOSAttribute*>& attrs = this->Reader->GetAttributes();
+    typedef std::vector<ADIOSAttribute*>::const_iterator AttrIt;
+    for(AttrIt a = attrs.begin(); a != attrs.end(); ++a)
+      {
+      if((*a)->GetName() == "/NumberOfPieces")
+        {
+        this->NumberOfPieces = (*a)->GetValue<int>();
+        }
+      }
+
+    // 2: Make sure we have the ones we need
+    if(this->NumberOfPieces != -1)
+      {
+      vtkWarningMacro(<< "NumberOfPieces attribute not present.  Assuming 1");
+      this->NumberOfPieces = 1;
+      }
+
+    // 3: Retrieve the time steps
+    const ADIOSVarInfo *varTimeSteps = this->Tree.Scalars["/TimeSteps"];
+    const double *ptrTimeSteps = varTimeSteps->GetAllValues<double>();
+    this->TimeSteps.clear();
+    this->TimeSteps.reserve(varTimeSteps->GetNumSteps());
+    this->TimeSteps.insert(this->TimeSteps.begin(), ptrTimeSteps,
+      ptrTimeSteps + varTimeSteps->GetNumSteps());
     }
-  outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), tSteps, nSteps);
+
+  // 4: Communicate metadata to all other ranks
+  int msg1[2];
+  if(this->Controller->GetLocalProcessId() == 0)
+    {
+    msg1[0] = this->NumberOfPieces;
+    msg1[1] = this->TimeSteps.size();
+    }
+  this->Controller->Broadcast(msg1, 2, 0);
+  if(this->Controller->GetLocalProcessId() != 0)
+    {
+    this->NumberOfPieces = msg1[0];
+    this->TimeSteps.resize(msg1[1]);
+    }
+  this->Controller->Broadcast(&(*this->TimeSteps.begin()),
+    this->TimeSteps.size(), 0);
+
+  // Populate the inverse lookup, i.e. time step value to time step index
+  this->TimeStepsIndex.clear();
+  for(size_t i = 0; i < this->TimeSteps.size(); ++i)
+    {
+    this->TimeStepsIndex[this->TimeSteps[i]] = i;
+    }
+
+  // Copy the necessary values to the output info
+  outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), 
+    &(*this->TimeSteps.begin()), this->TimeSteps.size());
 
   double *tRange = new double[2];
-  tRange[0] = tStart;
-  tRange[1] = tEnd;
+  tRange[0] = *this->TimeSteps.begin();
+  tRange[1] = *this->TimeSteps.rbegin();
   outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), tRange, 2);
 
   return true;
@@ -158,66 +208,102 @@ bool vtkADIOSReader::RequestInformation(vtkInformation *req,
 bool vtkADIOSReader::RequestUpdateExtent(vtkInformation *req,
   vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
 {
-  vtkErrorMacro("Not Implemented");
-  return true;
-}
-
-//----------------------------------------------------------------------------
-bool vtkADIOSReader::RequestUpdateTime(vtkInformation *req,
-  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
-{
   vtkInformation* outInfo = output->GetInformationObject(0);
-  double reqStep = outInfo->Get(
-    vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP());
 
-  if(this->RequestStepPrev != INVALID_STEP && reqStep < this->RequestStepPrev)
+  this->RequestNumberOfPieces = outInfo->Get(
+    vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
+
+  this->RequestPiece = outInfo->Get(
+    vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
+
+  this->RequestStep = outInfo->Get(
+    vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP());
+  std::map<double, size_t>::const_iterator idx = this->TimeStepsIndex.find(
+    this->RequestStep);
+  if(idx == this->TimeStepsIndex.end())
     {
-    // Currently not possible until we implement the Delorian feature
-    vtkErrorMacro("Time steps for ADIOS can only move forward!");
+    vtkWarningMacro(<< "Requested time step does not exist");
     return false;
     }
+  this->RequestStepIndex = idx->second;
 
-  this->RequestStep = reqStep;
   return true;
 }
-
-//----------------------------------------------------------------------------
-//bool vtkADIOSReader::RequestUpdateTimeDependentInformation(vtkInformation *req,
-//  vtkInformationVector **vtkNotUsed(input), vtkInformationVector *output)
-//{
-//  vtkErrorMacro("Not Implemented");
-//  return false;
-//}
 
 //----------------------------------------------------------------------------
 bool vtkADIOSReader::RequestData(vtkInformation *req,
   vtkInformationVector **vtkNotUsed(input), vtkInformationVector *outputVector)
 {
-  // This should get called by the parent class, which should have already
-  // allocated the object and scheduled it's reads
-  if(!this->Output)
-    {
-    return false;
-    }
-
-  try
-    {
-    this->WaitForReads();
-    }
-  catch(const std::runtime_error &e)
-    {
-    //vtkErrorMacro(e.what().c_str());
-    return false;
-    }
-
   // Get the output pipeline information and data object.
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
-  vtkDataObject* output = outInfo->Get(vtkDataObject::DATA_OBJECT());
-  output->ShallowCopy(this->Output);
+  vtkMultiBlockDataSet* output = vtkMultiBlockDataSet::SafeDownCast(
+    outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-  // Clear the requested step
-  this->RequestStepPrev = this->RequestStep;
-  this->RequestStep = INVALID_STEP;
+  // Set up multi-piece for paraview 
+  vtkMultiPieceDataSet *outputPieces = vtkMultiPieceDataSet::New();
+  output->SetNumberOfBlocks(1);
+  output->SetBlock(0, outputPieces);
+
+  // Make sure the multi-piece has the "global view"
+  outputPieces->SetNumberOfPieces(
+    std::max(this->NumberOfPieces, this->RequestNumberOfPieces));
+
+  // Cut out early if there's too many request pieces
+  if(this->RequestPiece >= this->NumberOfPieces)
+    {
+    return true;
+    }
+
+  // Determine the range of blocks to be read
+  int blockStart, blockEnd;
+  int blocksPerProc = this->NumberOfPieces > this->RequestNumberOfPieces ?
+    this->NumberOfPieces / this->RequestNumberOfPieces : 1;
+  int blocksLeftOver = this->NumberOfPieces % blocksPerProc;
+  if(this->RequestPiece < blocksLeftOver)
+    {
+    blockStart = (blocksPerProc + 1) * this->RequestPiece;
+    blockEnd = blockStart + blocksPerProc;
+    }
+  else
+    {
+    blockStart = blocksPerProc * this->RequestPiece + blocksLeftOver;
+    blockEnd = blockStart + blocksPerProc-1;
+    }
+
+  // Loop through the assigned blocks
+  bool readSuccess = true;
+  for(int blockId = blockStart; blockId <= blockEnd; ++blockId)
+    {
+    vtkDataObject *block;
+    try
+      {
+      int objType = (*this->Tree.GetDir("/"))["vtkDataObjectType"]
+        ->GetValue<vtkTypeUInt8>();
+      switch(objType)
+        {
+        case VTK_IMAGE_DATA:
+          block = this->ReadObject<vtkImageData>("/"); break;
+        case VTK_POLY_DATA:
+          block = this->ReadObject<vtkPolyData>("/"); break;
+        case VTK_UNSTRUCTURED_GRID:
+          block = this->ReadObject<vtkUnstructuredGrid>("/"); break;
+        default:
+          vtkErrorMacro(<< "Piece " << blockId << ": Unsupported object type");
+          readSuccess = false;
+          continue;
+        }
+      }
+    catch(const std::runtime_error &e)
+      {
+      vtkErrorMacro(<< "Piece " << blockId << ": " << e.what());
+      readSuccess = true;
+      continue;
+      }
+    outputPieces->SetPiece(blockId, block);
+    }
+
+  // After all blocks have been scheduled, wait for the reads to process
+  this->WaitForReads();
 
   return true;
 }
@@ -234,15 +320,15 @@ void vtkADIOSReader::PrintSelf(std::ostream& os, vtkIndent indent)
 //----------------------------------------------------------------------------
 bool vtkADIOSReader::OpenAndReadMetadata(void)
 {
-  if(this->Reader.IsOpen())
+  if(this->Reader->IsOpen())
     {
     return true;
     }
 
   try
     {
-    this->Reader.OpenFile(this->FileName);
-    this->Tree.BuildDirTree(this->Reader);
+    this->Reader->OpenFile(this->FileName);
+    this->Tree.BuildDirTree(*this->Reader);
     }
   catch(const std::runtime_error&)
     {
@@ -254,7 +340,7 @@ bool vtkADIOSReader::OpenAndReadMetadata(void)
 //----------------------------------------------------------------------------
 void vtkADIOSReader::WaitForReads(void)
 {
-  this->Reader.ReadArrays();
+  this->Reader->ReadArrays();
 }
 
 //----------------------------------------------------------------------------
@@ -292,6 +378,23 @@ vtkPolyData* vtkADIOSReader::ReadObject<vtkPolyData>(
 }
 
 //----------------------------------------------------------------------------
+template<>
+vtkUnstructuredGrid* vtkADIOSReader::ReadObject<vtkUnstructuredGrid>(
+  const std::string& path)
+{
+  vtkADIOSDirTree *subDir = this->Tree.GetDir(path);
+  TEST_OBJECT_TYPE(subDir, VTK_UNSTRUCTURED_GRID)
+
+  // Avoid excessive validation and assume that if we have a vtkDataObjectField
+  // then the remainder of the subdirectory will be in proper form
+
+  vtkUnstructuredGrid *data = vtkUnstructuredGrid::New();
+  this->ReadObject(subDir, data);
+
+  return data;
+}
+
+//----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const ADIOSVarInfo* info,
   vtkDataArray* data)
 {
@@ -308,7 +411,8 @@ void vtkADIOSReader::ReadObject(const ADIOSVarInfo* info,
   // Only queue the read if there's data to be read
   if(dims[0] != 0 && dims[1] != 0)
     {
-    this->Reader.ScheduleReadArray(info->GetId(), data->GetVoidPointer(0));
+    this->Reader->ScheduleReadArray(info->GetId(), data->GetVoidPointer(0),
+      this->RequestStepIndex);
     }
 }
 
@@ -485,6 +589,35 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     static_cast<vtkDataSet*>(data));
 }
 
+//----------------------------------------------------------------------------
+void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
+  vtkUnstructuredGrid* data)
+{
+  const ADIOSVarInfo *v;
+  if(v = (*subDir)["Points"])
+    {
+    vtkPoints *p = vtkPoints::New();
+    this->ReadObject(v, p->GetData());
+    data->SetPoints(p);
+    }
+
+  const ADIOSVarInfo *vCta = (*subDir)["CellTypes"];
+  const ADIOSVarInfo *vCla = (*subDir)["CellLocations"];
+  const vtkADIOSDirTree *dCa = subDir->GetDir("Cells");
+  if(vCta && vCla && dCa)
+    {
+    vtkUnsignedCharArray *cta = vtkUnsignedCharArray::New();
+    vtkIdTypeArray *cla = vtkIdTypeArray::New();
+    vtkCellArray *ca = vtkCellArray::New();
+    this->ReadObject(vCta, cta);
+    this->ReadObject(vCla, cla);
+    this->ReadObject(dCa, ca);
+    data->SetCells(cta, cla, ca);
+    }
+
+  this->ReadObject(subDir->GetDir("vtkDataSet"),
+    static_cast<vtkDataSet*>(data));
+}
 
 //----------------------------------------------------------------------------
 //Cleanup
