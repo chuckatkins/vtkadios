@@ -51,11 +51,11 @@ vtkStandardNewMacro(vtkADIOSWriter);
 
 //----------------------------------------------------------------------------
 vtkADIOSWriter::vtkADIOSWriter()
-: FileName(""), TransportMethod("POSIX"), TransportArguments(""),
+: FileName(""), TransportMethod(ADIOS::TransportMethod_POSIX),
+  TransportMethodArguments(""), Transform(ADIOS::Transform_NONE),
   Writer(NULL), Controller(NULL),
   NumberOfPieces(-1), RequestPiece(-1), NumberOfGhostLevels(-1),
-  WriteAllTimeSteps(true), TimeSteps(), CurrentTimeStep(TimeSteps.begin()),
-  vtkAlgorithm()
+  WriteAllTimeSteps(true), TimeSteps(), CurrentTimeStep(TimeSteps.begin())
 {
   std::memset(this->RequestExtent, 0, 6*sizeof(int));
   std::memset(this->WholeExtent, 0, 6*sizeof(int));
@@ -94,7 +94,7 @@ void vtkADIOSWriter::SetController(vtkMPIController *controller)
     delete this->Writer;
     }
   this->Writer = new ADIOSWriter(this->TransportMethod,
-    this->TransportArguments);
+    this->TransportMethodArguments);
   this->NumberOfPieces = this->Controller->GetNumberOfProcesses();
   this->RequestPiece = this->Controller->GetLocalProcessId();
   this->FirstStep = true;
@@ -165,7 +165,7 @@ bool vtkADIOSWriter::DefineAndWrite(void)
 }
 
 //----------------------------------------------------------------------------
-bool vtkADIOSWriter::Write(void)
+bool vtkADIOSWriter::WriteInternal(void)
 {
   if(!this->Input)
     {
@@ -174,6 +174,10 @@ bool vtkADIOSWriter::Write(void)
 
   switch(this->Input->GetDataObjectType())
     {
+    case VTK_IMAGE_DATA:
+      return this->DefineAndWrite<vtkImageData>();
+    case VTK_POLY_DATA:
+      return this->DefineAndWrite<vtkPolyData>();
     case VTK_UNSTRUCTURED_GRID:
       return this->DefineAndWrite<vtkUnstructuredGrid>();
     default:
@@ -277,7 +281,7 @@ bool vtkADIOSWriter::RequestData(vtkInformation *req,
     req->Set(vtkStreamingDemandDrivenPipeline::CONTINUE_EXECUTING(), 1);
     }
 
-  if(!this->Write())
+  if(!this->WriteInternal())
     {
     return false;
     }

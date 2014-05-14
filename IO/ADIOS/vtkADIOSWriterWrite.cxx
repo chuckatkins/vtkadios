@@ -64,7 +64,7 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkCellArray* v)
   vtkCellArray* valueTmp = const_cast<vtkCellArray*>(v);
   this->Writer->WriteScalar<vtkIdType>(path+"/NumberOfCells",
     valueTmp->GetNumberOfCells());
-  this->Write(path+"/Ia", valueTmp->GetData());
+  this->Write(path+"/IndexArray", valueTmp->GetData());
 }
 
 //----------------------------------------------------------------------------
@@ -89,7 +89,7 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkFieldData* v)
 void vtkADIOSWriter::Write(const std::string& path, const vtkDataSet* v)
 {
   vtkDataSet* valueTmp = const_cast<vtkDataSet*>(v);
-  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType", VTK_DATA_SET);
+
   this->Write(path+"/FieldData", valueTmp->GetFieldData());
   this->Write(path+"/CellData", valueTmp->GetCellData());
   this->Write(path+"/PointData", valueTmp->GetPointData());
@@ -98,10 +98,10 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkDataSet* v)
 //----------------------------------------------------------------------------
 void vtkADIOSWriter::Write(const std::string& path, const vtkImageData* v)
 {
-  this->Write(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
+  this->Write(path+"/DataSet", static_cast<const vtkDataSet*>(v));
 
   vtkImageData* valueTmp = const_cast<vtkImageData*>(v);
-  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType", VTK_IMAGE_DATA);
+  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/DataObjectType", VTK_IMAGE_DATA);
 
   double *origin = valueTmp->GetOrigin();
   this->Writer->WriteScalar<double>(path+"/OriginX", origin[0]);
@@ -125,10 +125,10 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkImageData* v)
 //----------------------------------------------------------------------------
 void vtkADIOSWriter::Write(const std::string& path, const vtkPolyData* v)
 {
-  this->Write(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
+  this->Write(path+"/DataSet", static_cast<const vtkDataSet*>(v));
 
   vtkPolyData* valueTmp = const_cast<vtkPolyData*>(v);
-  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType",
+  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/DataObjectType",
     VTK_POLY_DATA);
 
   vtkPoints *p;
@@ -147,10 +147,10 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkPolyData* v)
 void vtkADIOSWriter::Write(const std::string& path,
   const vtkUnstructuredGrid* v)
 {
-  this->Write(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
+  this->Write(path+"/DataSet", static_cast<const vtkDataSet*>(v));
 
   vtkUnstructuredGrid *valueTmp = const_cast<vtkUnstructuredGrid*>(v);
-  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/vtkDataObjectType",
+  this->Writer->WriteScalar<vtkTypeUInt8>(path+"/DataObjectType",
     VTK_UNSTRUCTURED_GRID);
 
   vtkPoints *p;

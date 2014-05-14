@@ -19,12 +19,15 @@
 
 #include <string>
 #include <vector>
+
 #include <adios_mpi.h>
+
+#include "ADIOSDefs.h"
 
 class ADIOSWriter
 {
 public:
-  ADIOSWriter(const std::string &transport = "POSIX",
+  ADIOSWriter(ADIOS::TransportMethod transport,
     const std::string &transportArgs = "");
 
   ~ADIOSWriter(void);
@@ -51,12 +54,12 @@ public:
   // Define arrays for later writing
   template<typename TN>
   void DefineArray(const std::string& path, const std::vector<size_t>& dims,
-    const std::string &xfm = "");
+    ADIOS::Transform xfm=ADIOS::Transform_NONE);
 
   // Description
   // Define arrays for later writing
   void DefineArray(const std::string& path, const std::vector<size_t>& dims,
-    int vtkType, const std::string &xfm = "");
+    int vtkType, ADIOS::Transform xfm=ADIOS::Transform_NONE);
 
   // Description:
   // Open the vtk group in the ADIOS file for writing one timestep

@@ -27,6 +27,9 @@
 #include <vtkSmartPointer.h>
 #include <vtkDataObject.h>
 #include <vtkMPIController.h>
+#include <vtkSetGet.h>
+
+#include "ADIOSDefs.h"
 
 class ADIOSWriter;
 
@@ -46,54 +49,42 @@ public:
   vtkTypeMacro(vtkADIOSWriter,vtkAlgorithm);
   virtual void PrintSelf(std::ostream& os, vtkIndent indent);
 
-  //BTX
   // Description:
   // Get/Set the output filename
-  vtkSetMacro(FileName, const std::string&);
-  vtkGetMacro(FileName, const std::string&);
-  //ETX
+  vtkGetMacro(FileName, const char *)
+  vtkSetMacro(FileName, const char *)
 
-  //BTX
   // Description:
-  // Get/Set the ADIOS transport method.  Current valid values are:
-  // "POSIX" (default), "MPI", "MPI_LUSTRE", "MPI_AGGREGATE", "VAR_MERGE",
-  // "Dataspaces", "DIMES", "PHDF5", and "NetCDF4". This is all dependent on
-  // the underlying ADIOS library and the support it was built with. If
-  // called, it must be called BEFORE SetController.
-  vtkSetMacro(TransportMethod, const std::string&);
-  vtkGetMacro(TransportMethod, const std::string&);
-  //ETX
+  // Get/Set the ADIOS transport method.  Current valid values are: NULL,
+  // POSIX (default), MPI, MPI_LUSTRE, MPI_AGGREGATE, VAR_MERGE, Dataspaces,
+  // DIMES, PHDF5, and NetCDF4. This is all dependent on the underlying ADIOS
+  // library and the support it was built with. If called, it must be called
+  // BEFORE SetController.
+  vtkSetMacro(TransportMethod, ADIOS::TransportMethod)
+  vtkGetMacro(TransportMethod, ADIOS::TransportMethod)
 
-  //BTX
   // Description:
   // Get/Set arguments to the ADIOS transport method (default is "").  If
   // called, it must be called BEFORE SetController
-  vtkSetMacro(TransportArguments, const std::string&);
-  vtkGetMacro(TransportArguments, const std::string&);
-  //ETX
+  vtkSetMacro(TransportMethodArguments, const char *)
+  vtkGetMacro(TransportMethodArguments, const char *)
 
-  //BTX
   // Description:
   // Get/Set the data transformation.  Currently valid values are:
-  // "" (default), "zlib", and "bzlib2".  Check the configuration of your
+  // NONE (default), ZLIB, BZLIB2, and SZIP.  Check the configuration of your
   // ADIOS library to determine the supported transform.  If called, it
   // must be called BEFORE the first step. The transform will be applied to
   // all arrays
-  vtkSetMacro(Transform, const std::string&);
-  vtkGetMacro(Transform, const std::string&);
-  //ETX
+  vtkSetMacro(Transform, ADIOS::Transform)
+  vtkGetMacro(Transform, ADIOS::Transform)
 
-  //BTX
   // Description:
   // Set the MPI controller.
   void SetController(vtkMPIController*);
-  //ETX
 
   // Description:
   // Manually set the input data when not running  a pipeline
   void SetInput(vtkDataObject* input) { this->Input = input; }
-
-  // Description:
 
   // Description:
   // The main interface which triggers the writer to start
@@ -102,7 +93,7 @@ public:
 
   // Description:
   // Declare data if necessary and write the current step to the output stream
-  virtual bool Write(void);
+  virtual bool Write(void) { this->Update(); }
 
 protected:
 
@@ -136,10 +127,10 @@ protected:
   void Write(const std::string& path, const vtkPolyData* value);
   void Write(const std::string& path, const vtkUnstructuredGrid* value);
 
-  std::string FileName;
-  std::string TransportMethod;
-  std::string TransportArguments;
-  std::string Transform;
+  const char *FileName;
+  ADIOS::TransportMethod TransportMethod;
+  const char *TransportMethodArguments;
+  ADIOS::Transform Transform;
   ADIOSWriter *Writer;
   bool FirstStep;
   int Rank;
@@ -171,6 +162,8 @@ protected:
   vtkSmartPointer<vtkDataObject> Input;
 
 private:
+  bool WriteInternal(void);
+
   template<typename T>
   bool DefineAndWrite(void);
 

@@ -61,9 +61,8 @@ const double INVALID_STEP = std::numeric_limits<double>::min();
 //----------------------------------------------------------------------------
 
 vtkADIOSReader::vtkADIOSReader()
-: FileName(""), Method("BP"), MethodArgs(""), Reader(NULL), NumberOfPieces(-1),
-  Output(NULL),
-  vtkAlgorithm()
+: FileName(""), ReadMethod(ADIOS_READ_METHOD_BP), ReadMethodArguments(""),
+  Reader(NULL), NumberOfPieces(-1), Output(NULL)
 {
   this->SetNumberOfInputPorts(0);
   this->SetNumberOfOutputPorts(1);
@@ -87,7 +86,7 @@ void vtkADIOSReader::SetController(vtkMPIController *controller)
   this->Controller = controller;
   ADIOSReader::Initialize(*static_cast<vtkMPICommunicator *>(
     this->Controller->GetCommunicator())->GetMPIComm()->GetHandle(),
-    this->Method, this->MethodArgs);
+    this->ReadMethod, this->ReadMethodArguments);
 
   if(this->Reader)
     {

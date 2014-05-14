@@ -20,9 +20,13 @@
 #include <string>
 #include <vector>
 #include <utility>
+
+#include <adios_mpi.h>
+#include <adios_read.h>
+
+#include "ADIOSDefs.h"
 #include "ADIOSVarInfo.h"
 #include "ADIOSAttribute.h"
-#include <adios_mpi.h>
 
 class ADIOSReader
 {
@@ -32,7 +36,8 @@ public:
 
   // Description:
   // Initialize the underlying ADIOS subsystem
-  static bool Initialize(MPI_Comm comm, const std::string &method = "BP",
+  static bool Initialize(MPI_Comm comm,
+    ADIOS_READ_METHOD method = ADIOS_READ_METHOD_BP,
     const std::string &methodArgs = "");
 
   // Description:

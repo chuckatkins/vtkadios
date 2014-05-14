@@ -117,7 +117,7 @@ ADIOSReader::~ADIOSReader(void)
 }
 
 //----------------------------------------------------------------------------
-bool ADIOSReader::Initialize(MPI_Comm comm, const std::string& method,
+bool ADIOSReader::Initialize(MPI_Comm comm, ADIOS_READ_METHOD method,
   const std::string &methodArgs)
 {
   if(ADIOSReader::ADIOSReaderImpl::Comm != INVALID_MPI_COMM)
@@ -125,30 +125,7 @@ bool ADIOSReader::Initialize(MPI_Comm comm, const std::string& method,
     return ADIOSReader::ADIOSReaderImpl::Comm == comm;
     }
 
-  if(method == "BP")
-    {
-    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_BP;
-    }
-  else if(method == "BP_AGGREGATE")
-    {
-    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_BP_AGGREGATE;
-    }
-  else if(method == "DATASPACES")
-    {
-    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_DATASPACES;
-    }
-  else if(method == "DIMES")
-    {
-    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_DIMES;
-    }
-  else if(method == "FLEXPATH")
-    {
-    ADIOSReader::ADIOSReaderImpl::Method = ADIOS_READ_METHOD_FLEXPATH;
-    }
-  else
-    {
-    throw std::runtime_error("Unsupported read method");
-    }
+  ADIOSReader::ADIOSReaderImpl::Method = static_cast<ADIOS_READ_METHOD>(method);
 
   int err;
   err = adios_read_init_method(ADIOSReader::ADIOSReaderImpl::Method,

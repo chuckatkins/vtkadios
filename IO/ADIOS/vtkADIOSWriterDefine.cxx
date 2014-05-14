@@ -37,6 +37,7 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkAbstractArray* v)
   // String arrays not currently supported
   if(valueTmp->GetDataType() == VTK_STRING)
     {
+    vtkWarningMacro(<< "Skipping string array at " << path);
     return;
     }
 
@@ -71,7 +72,7 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkCellArray* v)
 {
   vtkCellArray *valueTmp = const_cast<vtkCellArray*>(v);
   this->Writer->DefineScalar<vtkIdType>(path+"/NumberOfCells");
-  this->Define(path+"/Ia", valueTmp->GetData());
+  this->Define(path+"/IndexArray", valueTmp->GetData());
 }
 
 //----------------------------------------------------------------------------
@@ -86,6 +87,7 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkFieldData* v)
     std::string name = aa->GetName();
     if(name.empty()) // skip unnamed arrays
       {
+      vtkWarningMacro(<< "Skipping unnamed array in " << path);
       continue;
       }
     this->Define(path+"/"+name, da ? da : aa);
@@ -96,8 +98,8 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkFieldData* v)
 void vtkADIOSWriter::Define(const std::string& path, const vtkDataSet* v)
 {
   vtkDataSet* valueTmp = const_cast<vtkDataSet*>(v);
-  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
-  this->Define(path+"/FieldData", valueTmp->GetFieldData());
+  
+this->Define(path+"/FieldData", valueTmp->GetFieldData());
   this->Define(path+"/CellData", valueTmp->GetCellData());
   this->Define(path+"/PointData", valueTmp->GetPointData());
 }
@@ -105,9 +107,9 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkDataSet* v)
 //----------------------------------------------------------------------------
 void vtkADIOSWriter::Define(const std::string& path, const vtkImageData* v)
 {
-  this->Define(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
+  this->Define(path+"/DataSet", static_cast<const vtkDataSet*>(v));
 
-  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
+  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/DataObjectType");
   this->Writer->DefineScalar<double>(path+"/OriginX");
   this->Writer->DefineScalar<double>(path+"/OriginY");
   this->Writer->DefineScalar<double>(path+"/OriginZ");
@@ -125,10 +127,10 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkImageData* v)
 //----------------------------------------------------------------------------
 void vtkADIOSWriter::Define(const std::string& path, const vtkPolyData* v)
 {
-  this->Define(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
+  this->Define(path+"/DataSet", static_cast<const vtkDataSet*>(v));
 
   vtkPolyData *valueTmp = const_cast<vtkPolyData*>(v);
-  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
+  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/DataObjectType");
 
   vtkPoints *p;
   if(p = valueTmp->GetPoints())
@@ -146,10 +148,10 @@ void vtkADIOSWriter::Define(const std::string& path, const vtkPolyData* v)
 void vtkADIOSWriter::Define(const std::string& path,
   const vtkUnstructuredGrid* v)
 {
-  this->Define(path+"/vtkDataSet", static_cast<const vtkDataSet*>(v));
+  this->Define(path+"/DataSet", static_cast<const vtkDataSet*>(v));
 
   vtkUnstructuredGrid *valueTmp = const_cast<vtkUnstructuredGrid*>(v);
-  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/vtkDataObjectType");
+  this->Writer->DefineScalar<vtkTypeUInt8>(path+"/DataObjectType");
 
   vtkPoints *p;
   if(p = valueTmp->GetPoints())

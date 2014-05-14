@@ -30,8 +30,9 @@
 
 #include "vtkIOADIOSModule.h" // For export macro
 #include "vtkADIOSDirTree.h"
-#include "ADIOSVarInfo.h"
-#include "ADIOSReader.h"
+
+class ADIOSVarInfo;
+class ADIOSReader;
 
 class vtkDataArray;
 class vtkCellArray;
@@ -50,36 +51,29 @@ public:
   vtkTypeMacro(vtkADIOSReader,vtkAlgorithm);
   virtual void PrintSelf(std::ostream& os, vtkIndent indent);
 
-  //BTX
   // Description:
   // Get/Set the inut filename
-  vtkSetMacro(FileName, const std::string&);  
-  vtkGetMacro(FileName, const std::string&);  
-  //ETX
+  vtkSetMacro(FileName, const char *);  
+  vtkGetMacro(FileName, const char *);  
   
-  //BTX
   // Description:
-  // Get/Set the ADIOS read method. Check the configuration of your
-  // ADIOS library to determine the supported transform.  If called, it
-  // must be called BEFORE the first SetController.
-  vtkSetMacro(Method, const std::string&);  
-  vtkGetMacro(Method, const std::string&);  
-  //ETX
+  // Get/Set the ADIOS read method. Currently supported values are:
+  // BP (default), BP_AGGREGATE, DataSpaces, DIMES, and FlexPath.  Check the
+  // configuration of your ADIOS library to determine the supported read
+  // methods. If called, it must be called BEFORE the first SetController.
+  vtkSetMacro(ReadMethod, ADIOS_READ_METHOD);  
+  vtkGetMacro(ReadMethod, ADIOS_READ_METHOD);  
   
-  //BTX
   // Description:
   // Get/Set arguments to the ADIOS read method. Check the configuration of your
   // ADIOS library to determine the supported transform.  If called, it
   // must be called BEFORE the first SetController.
-  vtkSetMacro(MethodArgs, const std::string&);  
-  vtkGetMacro(MethodArgs, const std::string&);  
-  //ETX
+  vtkSetMacro(ReadMethodArguments, const char *);  
+  vtkGetMacro(ReadMethodArguments, const char *);  
   
-  //BTX
   // Description:
   // Set the MPI controller.
   void SetController(vtkMPIController*);
-  //ETX
 
   // Description:
   // The main interface which triggers the reader to start
@@ -116,9 +110,9 @@ protected:
   void ReadObject(const vtkADIOSDirTree *dir, vtkPolyData* data);
   void ReadObject(const vtkADIOSDirTree *dir, vtkUnstructuredGrid* data);
 
-  std::string FileName;
-  std::string Method;
-  std::string MethodArgs;
+  const char *FileName;
+  ADIOS_READ_METHOD ReadMethod;
+  const char *ReadMethodArguments;
   vtkADIOSDirTree Tree;
   ADIOSReader *Reader;
   vtkSmartPointer<vtkMPIController> Controller;

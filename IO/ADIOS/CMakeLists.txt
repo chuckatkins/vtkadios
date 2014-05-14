@@ -7,6 +7,7 @@ find_package(MPI REQUIRED)
 set(vtkADIOSIO_SOURCES
   vtkIOADIOSModule.h
 
+  ADIOSDefs.h                 ADIOSDefs.cxx
   ADIOSUtilities.h            ADIOSUtilities.cxx
 
   ADIOSVarInfo.h              ADIOSVarInfo.cxx
@@ -19,7 +20,6 @@ set(vtkADIOSIO_SOURCES
   #vtkADIOSPolyDataReader.h    vtkADIOSPolyDataReader.cxx
 
   ADIOSWriter.h               ADIOSWriter.cxx
-
   vtkADIOSWriter.h            vtkADIOSWriter.cxx
   vtkADIOSWriterDefine.cxx    vtkADIOSWriterWrite.cxx
 )
