@@ -11,9 +11,6 @@
 #include "Extra/vtkCompositeDataToUnstructuredGridFilter.h"
 #include "IO/ADIOS/vtkADIOSWriter.h"
 
-vtkSmartPointer<vtkImageData> readVTKImage(const std::string &filename);
-void writeADIOSImage(vtkSmartPointer<vtkImageData>, const std::string&);
-
 int main(int argc, char **argv)
 {
   vtkNew<vtkMPIController> controller;
@@ -37,6 +34,8 @@ int main(int argc, char **argv)
   writer->SetInputConnection(filter->GetOutputPort());
 
   reader->SetFileName(argv[1]);
+
+  // Need to update info first so we know what arrays are available to turn on
   reader->UpdateInformation();
   for(int i = 0; i < reader->GetNumberOfElementResultArrays(); ++i)
     {
@@ -45,7 +44,7 @@ int main(int argc, char **argv)
     }
 
   writer->SetFileName(argv[2]);
-  writer->SetTransform("zlib:1");
+  writer->SetTransform(ADIOS::Transform_ZLIB);
   writer->Update();
 
   return 0;
