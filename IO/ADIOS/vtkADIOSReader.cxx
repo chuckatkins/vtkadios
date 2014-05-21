@@ -39,6 +39,7 @@
 #include <vtkUnstructuredGrid.h>
 
 #include "vtkADIOSReader.h"
+#include "vtkADIOSDirTree.h"
 #include "ADIOSVarInfo.h"
 
 #define TEST_OBJECT_TYPE(subDir, objType) \
@@ -47,7 +48,7 @@
     return NULL; \
     } \
  \
-  const ADIOSVarInfo *v = (*subDir)["vtkDataObjectType"]; \
+  const ADIOSVarInfo *v = (*subDir)["DataObjectType"]; \
   if(!(v && v->IsScalar() && v->GetValue<vtkTypeUInt8>() == objType)) \
     { \
     return NULL; \
@@ -59,10 +60,13 @@ typedef std::map<std::string, const ADIOSVarInfo*> VarMap;
 const double INVALID_STEP = std::numeric_limits<double>::min();
 
 //----------------------------------------------------------------------------
+vtkStandardNewMacro(vtkADIOSReader);
+
+//----------------------------------------------------------------------------
 
 vtkADIOSReader::vtkADIOSReader()
-: FileName(""), ReadMethod(ADIOS_READ_METHOD_BP), ReadMethodArguments(""),
-  Reader(NULL), NumberOfPieces(-1), Output(NULL)
+: FileName(""), ReadMethod(ADIOS::ReadMethod_BP), ReadMethodArguments(""),
+  Tree(NULL), Reader(NULL), NumberOfPieces(-1), Output(NULL)
 {
   this->SetNumberOfInputPorts(0);
   this->SetNumberOfOutputPorts(1);
@@ -71,7 +75,15 @@ vtkADIOSReader::vtkADIOSReader()
 //----------------------------------------------------------------------------
 vtkADIOSReader::~vtkADIOSReader()
 {
-  delete this->Reader;
+  if(this->Tree)
+    {
+    delete this->Tree;
+    }
+
+  if(this->Reader)
+    {
+    delete this->Reader;
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -107,6 +119,15 @@ int vtkADIOSReader::FillOutputPortInformation(
 int vtkADIOSReader::ProcessRequest(vtkInformation* request,
   vtkInformationVector** input, vtkInformationVector* output)
 {
+  // Make sure the ADIOS subsystem is initialized before processing any
+  // srt of request.  If no controller has been specified then assume the
+  //global MPI Controller
+  if(!this->Controller)
+    {
+    this->SetController(vtkMPIController::SafeDownCast(
+      vtkMultiProcessController::GetGlobalController()));
+    }
+
   if(!this->OpenAndReadMetadata())
     {
     return false;
@@ -153,14 +174,14 @@ bool vtkADIOSReader::RequestInformation(vtkInformation *req,
       }
 
     // 2: Make sure we have the ones we need
-    if(this->NumberOfPieces != -1)
+    if(this->NumberOfPieces == -1)
       {
       vtkWarningMacro(<< "NumberOfPieces attribute not present.  Assuming 1");
       this->NumberOfPieces = 1;
       }
 
     // 3: Retrieve the time steps
-    const ADIOSVarInfo *varTimeSteps = this->Tree.Scalars["/TimeSteps"];
+    const ADIOSVarInfo *varTimeSteps = (*this->Tree)["TimeStamp"];
     const double *ptrTimeSteps = varTimeSteps->GetAllValues<double>();
     this->TimeSteps.clear();
     this->TimeSteps.reserve(varTimeSteps->GetNumSteps());
@@ -238,6 +259,9 @@ bool vtkADIOSReader::RequestData(vtkInformation *req,
   vtkMultiBlockDataSet* output = vtkMultiBlockDataSet::SafeDownCast(
     outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
+  output->GetInformation()->Set(vtkDataObject::DATA_TIME_STEP(),
+    this->RequestStep);
+
   // Set up multi-piece for paraview 
   vtkMultiPieceDataSet *outputPieces = vtkMultiPieceDataSet::New();
   output->SetNumberOfBlocks(1);
@@ -269,6 +293,11 @@ bool vtkADIOSReader::RequestData(vtkInformation *req,
     blockEnd = blockStart + blocksPerProc-1;
     }
 
+  if(this->Controller->GetLocalProcessId() == 0)
+    {
+    vtkWarningMacro(<< "Reading data for time " << this->RequestStep*1e6);
+    }
+
   // Loop through the assigned blocks
   bool readSuccess = true;
   for(int blockId = blockStart; blockId <= blockEnd; ++blockId)
@@ -276,16 +305,16 @@ bool vtkADIOSReader::RequestData(vtkInformation *req,
     vtkDataObject *block;
     try
       {
-      int objType = (*this->Tree.GetDir("/"))["vtkDataObjectType"]
+      int objType = (*this->Tree->GetDir("/"))["DataObjectType"]
         ->GetValue<vtkTypeUInt8>();
       switch(objType)
         {
         case VTK_IMAGE_DATA:
-          block = this->ReadObject<vtkImageData>("/"); break;
+          block = this->ReadObject<vtkImageData>("/", blockId); break;
         case VTK_POLY_DATA:
-          block = this->ReadObject<vtkPolyData>("/"); break;
+          block = this->ReadObject<vtkPolyData>("/", blockId); break;
         case VTK_UNSTRUCTURED_GRID:
-          block = this->ReadObject<vtkUnstructuredGrid>("/"); break;
+          block = this->ReadObject<vtkUnstructuredGrid>("/", blockId); break;
         default:
           vtkErrorMacro(<< "Piece " << blockId << ": Unsupported object type");
           readSuccess = false;
@@ -295,7 +324,7 @@ bool vtkADIOSReader::RequestData(vtkInformation *req,
     catch(const std::runtime_error &e)
       {
       vtkErrorMacro(<< "Piece " << blockId << ": " << e.what());
-      readSuccess = true;
+      readSuccess = false;
       continue;
       }
     outputPieces->SetPiece(blockId, block);
@@ -304,7 +333,7 @@ bool vtkADIOSReader::RequestData(vtkInformation *req,
   // After all blocks have been scheduled, wait for the reads to process
   this->WaitForReads();
 
-  return true;
+  return readSuccess;
 }
 
 //----------------------------------------------------------------------------
@@ -313,7 +342,7 @@ void vtkADIOSReader::PrintSelf(std::ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os,indent);
   os << indent << "FileName: " << this->FileName << std::endl;
   os << indent << "Tree: " << std::endl;
-  this->Tree.PrintSelf(os, indent.GetNextIndent());
+  this->Tree->PrintSelf(os, indent.GetNextIndent());
 }
 
 //----------------------------------------------------------------------------
@@ -327,7 +356,8 @@ bool vtkADIOSReader::OpenAndReadMetadata(void)
   try
     {
     this->Reader->OpenFile(this->FileName);
-    this->Tree.BuildDirTree(*this->Reader);
+    this->Tree = new vtkADIOSDirTree;
+    this->Tree->BuildDirTree(*this->Reader);
     }
   catch(const std::runtime_error&)
     {
@@ -345,16 +375,16 @@ void vtkADIOSReader::WaitForReads(void)
 //----------------------------------------------------------------------------
 template<>
 vtkImageData* vtkADIOSReader::ReadObject<vtkImageData>(
-  const std::string& path)
+  const std::string& path, int blockId)
 {
-  vtkADIOSDirTree *subDir = this->Tree.GetDir(path);
+  vtkADIOSDirTree *subDir = this->Tree->GetDir(path);
   TEST_OBJECT_TYPE(subDir, VTK_IMAGE_DATA)
 
   // Avoid excessive validation and assume that if we have a vtkDataObjectField
   // then the remainder of the subdirectory will be in proper form
 
   vtkImageData *data = vtkImageData::New();
-  this->ReadObject(subDir, data);
+  this->ReadObject(subDir, data, blockId);
 
   return data;
 }
@@ -362,16 +392,16 @@ vtkImageData* vtkADIOSReader::ReadObject<vtkImageData>(
 //----------------------------------------------------------------------------
 template<>
 vtkPolyData* vtkADIOSReader::ReadObject<vtkPolyData>(
-  const std::string& path)
+  const std::string& path, int blockId)
 {
-  vtkADIOSDirTree *subDir = this->Tree.GetDir(path);
+  vtkADIOSDirTree *subDir = this->Tree->GetDir(path);
   TEST_OBJECT_TYPE(subDir, VTK_POLY_DATA)
 
   // Avoid excessive validation and assume that if we have a vtkDataObjectField
   // then the remainder of the subdirectory will be in proper form
 
   vtkPolyData *data = vtkPolyData::New();
-  this->ReadObject(subDir, data);
+  this->ReadObject(subDir, data, blockId);
 
   return data;
 }
@@ -379,23 +409,23 @@ vtkPolyData* vtkADIOSReader::ReadObject<vtkPolyData>(
 //----------------------------------------------------------------------------
 template<>
 vtkUnstructuredGrid* vtkADIOSReader::ReadObject<vtkUnstructuredGrid>(
-  const std::string& path)
+  const std::string& path, int blockId)
 {
-  vtkADIOSDirTree *subDir = this->Tree.GetDir(path);
+  vtkADIOSDirTree *subDir = this->Tree->GetDir(path);
   TEST_OBJECT_TYPE(subDir, VTK_UNSTRUCTURED_GRID)
 
   // Avoid excessive validation and assume that if we have a vtkDataObjectField
   // then the remainder of the subdirectory will be in proper form
 
   vtkUnstructuredGrid *data = vtkUnstructuredGrid::New();
-  this->ReadObject(subDir, data);
+  this->ReadObject(subDir, data, blockId);
 
   return data;
 }
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const ADIOSVarInfo* info,
-  vtkDataArray* data)
+  vtkDataArray* data, int blockId)
 {
   std::vector<size_t> dims;
   info->GetDims(dims);
@@ -411,21 +441,21 @@ void vtkADIOSReader::ReadObject(const ADIOSVarInfo* info,
   if(dims[0] != 0 && dims[1] != 0)
     {
     this->Reader->ScheduleReadArray(info->GetId(), data->GetVoidPointer(0),
-      this->RequestStepIndex);
+      this->RequestStepIndex, blockId);
     }
 }
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkCellArray* data)
+  vtkCellArray* data, int blockId)
 {
   data->SetNumberOfCells((*subDir)["NumberOfCells"]->GetValue<vtkIdType>());
-  this->ReadObject((*subDir)["Ia"], data->GetData());
+  this->ReadObject((*subDir)["IndexArray"], data->GetData(), blockId);
 }
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkFieldData* data)
+  vtkFieldData* data, int blockId)
 {
   for(std::map<std::string, const ADIOSVarInfo*>::const_iterator a =
     subDir->Arrays.begin(); a != subDir->Arrays.end(); ++a)
@@ -433,14 +463,14 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     vtkDataArray *da = vtkDataArray::CreateDataArray(a->second->GetType());
 
     da->SetName(a->first.c_str());
-    this->ReadObject(a->second, da);
+    this->ReadObject(a->second, da, blockId);
     data->AddArray(da);
     }
 }
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkDataSetAttributes* data)
+  vtkDataSetAttributes* data, int blockId)
 {
   const ADIOSVarInfo *v;
 
@@ -448,7 +478,7 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("Scalars_");
-    this->ReadObject(v, da);
+    this->ReadObject(v, da, blockId);
     data->SetScalars(da);
     da->UnRegister(0);
     }
@@ -456,7 +486,7 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("Vectors_");
-    this->ReadObject(v, da);
+    this->ReadObject(v, da, blockId);
     data->SetVectors(da);
     da->UnRegister(0);
     }
@@ -464,7 +494,7 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("Normals_");
-    this->ReadObject(v, da);
+    this->ReadObject(v, da, blockId);
     data->SetNormals(da);
     da->UnRegister(0);
     }
@@ -472,7 +502,7 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("TCoords_");
-    this->ReadObject(v, da);
+    this->ReadObject(v, da, blockId);
     data->SetTCoords(da);
     da->UnRegister(0);
     }
@@ -480,7 +510,7 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("Tensors_");
-    this->ReadObject(v, da);
+    this->ReadObject(v, da, blockId);
     data->SetTensors(da);
     da->UnRegister(0);
     }
@@ -488,7 +518,7 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("GlobalIds_");
-    this->ReadObject(v, da);
+    this->ReadObject(v, da, blockId);
     data->SetGlobalIds(da);
     da->UnRegister(0);
     }
@@ -496,7 +526,7 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     {
     vtkDataArray *da = vtkDataArray::CreateDataArray(v->GetType());
     da->SetName("PedigreeIds_");
-    this->ReadObject(v, da);
+    this->ReadObject(v, da, blockId);
     data->SetPedigreeIds(da);
     da->UnRegister(0);
     }
@@ -504,27 +534,27 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkDataSet* data)
+  vtkDataSet* data, int blockId)
 {
   const vtkADIOSDirTree *d;
 
   if(d = subDir->GetDir("FieldData"))
     {
-    this->ReadObject(d, data->GetFieldData());
+    this->ReadObject(d, data->GetFieldData(), blockId);
     }
   if(d = subDir->GetDir("CellData"))
     {
-    this->ReadObject(d, data->GetCellData());
+    this->ReadObject(d, data->GetCellData(), blockId);
     }
   if(d = subDir->GetDir("PointData"))
     {
-    this->ReadObject(d, data->GetPointData());
+    this->ReadObject(d, data->GetPointData(), blockId);
     }
 }
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkImageData* data)
+  vtkImageData* data, int blockId)
 {
   data->SetOrigin(
     (*subDir)["OriginX"]->GetValue<double>(),
@@ -542,19 +572,19 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     (*subDir)["ExtentZMin"]->GetValue<int>(),
     (*subDir)["ExtentZMax"]->GetValue<int>());
 
-  this->ReadObject(subDir->GetDir("vtkDataSet"),
-    static_cast<vtkDataSet*>(data));
+  this->ReadObject(subDir->GetDir("DataSet"), static_cast<vtkDataSet*>(data),
+    blockId);
 }
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkPolyData* data)
+  vtkPolyData* data, int blockId)
 {
   const ADIOSVarInfo *v;
   if(v = (*subDir)["Points"])
     {
     vtkPoints *p = vtkPoints::New();
-    this->ReadObject(v, p->GetData());
+    this->ReadObject(v, p->GetData(), blockId);
     data->SetPoints(p);
     }
 
@@ -562,41 +592,41 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
   if(d = subDir->GetDir("Verticies"))
     {
     vtkCellArray *cells = vtkCellArray::New();
-    this->ReadObject(d, cells);
+    this->ReadObject(d, cells, blockId);
     data->SetVerts(cells);
     }
   if(d = subDir->GetDir("Lines"))
     {
     vtkCellArray *cells = vtkCellArray::New();
-    this->ReadObject(d, cells);
+    this->ReadObject(d, cells, blockId);
     data->SetLines(cells);
     }
   if(d = subDir->GetDir("Polygons"))
     {
     vtkCellArray *cells = vtkCellArray::New();
-    this->ReadObject(d, cells);
+    this->ReadObject(d, cells, blockId);
     data->SetPolys(cells);
     }
   if(d = subDir->GetDir("Strips"))
     {
     vtkCellArray *cells = vtkCellArray::New();
-    this->ReadObject(d, cells);
+    this->ReadObject(d, cells, blockId);
     data->SetStrips(cells);
     }
 
-  this->ReadObject(subDir->GetDir("vtkDataSet"),
-    static_cast<vtkDataSet*>(data));
+  this->ReadObject(subDir->GetDir("DataSet"), static_cast<vtkDataSet*>(data),
+    blockId);
 }
 
 //----------------------------------------------------------------------------
 void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
-  vtkUnstructuredGrid* data)
+  vtkUnstructuredGrid* data, int blockId)
 {
   const ADIOSVarInfo *v;
   if(v = (*subDir)["Points"])
     {
     vtkPoints *p = vtkPoints::New();
-    this->ReadObject(v, p->GetData());
+    this->ReadObject(v, p->GetData(), blockId);
     data->SetPoints(p);
     }
 
@@ -608,14 +638,14 @@ void vtkADIOSReader::ReadObject(const vtkADIOSDirTree *subDir,
     vtkUnsignedCharArray *cta = vtkUnsignedCharArray::New();
     vtkIdTypeArray *cla = vtkIdTypeArray::New();
     vtkCellArray *ca = vtkCellArray::New();
-    this->ReadObject(vCta, cta);
-    this->ReadObject(vCla, cla);
-    this->ReadObject(dCa, ca);
+    this->ReadObject(vCta, cta, blockId);
+    this->ReadObject(vCla, cla, blockId);
+    this->ReadObject(dCa, ca, blockId);
     data->SetCells(cta, cla, ca);
     }
 
-  this->ReadObject(subDir->GetDir("vtkDataSet"),
-    static_cast<vtkDataSet*>(data));
+  this->ReadObject(subDir->GetDir("DataSet"), static_cast<vtkDataSet*>(data),
+    blockId);
 }
 
 //----------------------------------------------------------------------------

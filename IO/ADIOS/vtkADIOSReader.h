@@ -29,10 +29,11 @@
 #include <vtkMPIController.h>
 
 #include "vtkIOADIOSModule.h" // For export macro
-#include "vtkADIOSDirTree.h"
+#include "ADIOSDefs.h"
 
 class ADIOSVarInfo;
 class ADIOSReader;
+class vtkADIOSDirTree;
 
 class vtkDataArray;
 class vtkCellArray;
@@ -42,12 +43,14 @@ class vtkDataObject;
 class vtkDataSet;
 class vtkImageData;
 class vtkPolyData;
+class vtkUnstructuredGrid;
 
 //----------------------------------------------------------------------------
 
 class VTKIOADIOS_EXPORT vtkADIOSReader : public vtkAlgorithm
 {
 public:
+  static vtkADIOSReader* New(void);
   vtkTypeMacro(vtkADIOSReader,vtkAlgorithm);
   virtual void PrintSelf(std::ostream& os, vtkIndent indent);
 
@@ -61,8 +64,8 @@ public:
   // BP (default), BP_AGGREGATE, DataSpaces, DIMES, and FlexPath.  Check the
   // configuration of your ADIOS library to determine the supported read
   // methods. If called, it must be called BEFORE the first SetController.
-  vtkSetMacro(ReadMethod, ADIOS_READ_METHOD);  
-  vtkGetMacro(ReadMethod, ADIOS_READ_METHOD);  
+  vtkSetMacro(ReadMethod, ADIOS::ReadMethod);  
+  vtkGetMacro(ReadMethod, ADIOS::ReadMethod);  
   
   // Description:
   // Get/Set arguments to the ADIOS read method. Check the configuration of your
@@ -94,26 +97,26 @@ protected:
   // Create a VTK object with it's scalar values and allocate any arrays, and
   // schedule them for reading
   template<typename T>
-  T* ReadObject(const std::string& path);
+  T* ReadObject(const std::string& path, int blockId);
 
   // Description:
   // Initialize a pre-allocated object with it's appropriate scalars.  These
   // methods do not perform any validation and assume that the provides ADIOS
   // structures and vtk objects are properly formed.  Arrays will be scheduled
   // for reading afterwards
-  void ReadObject(const ADIOSVarInfo* info, vtkDataArray* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkCellArray* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkFieldData* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSetAttributes* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSet* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkImageData* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkPolyData* data);
-  void ReadObject(const vtkADIOSDirTree *dir, vtkUnstructuredGrid* data);
+  void ReadObject(const ADIOSVarInfo* info, vtkDataArray* data, int blockId);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkCellArray* data, int blockId);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkFieldData* data, int blockId);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSetAttributes* data, int blockId);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkDataSet* data, int blockId);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkImageData* data, int blockId);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkPolyData* data, int blockId);
+  void ReadObject(const vtkADIOSDirTree *dir, vtkUnstructuredGrid* data, int blockId);
 
   const char *FileName;
-  ADIOS_READ_METHOD ReadMethod;
+  ADIOS::ReadMethod ReadMethod;
   const char *ReadMethodArguments;
-  vtkADIOSDirTree Tree;
+  vtkADIOSDirTree *Tree;
   ADIOSReader *Reader;
   vtkSmartPointer<vtkMPIController> Controller;
 
@@ -148,7 +151,8 @@ private:
 };
 
 #define DECLARE_EXPLICIT(T) \
-template<> T* vtkADIOSReader::ReadObject<T>(const std::string& path);
+template<> T* vtkADIOSReader::ReadObject<T>(const std::string& path, \
+  int blockId);
 DECLARE_EXPLICIT(vtkImageData)
 DECLARE_EXPLICIT(vtkPolyData)
 DECLARE_EXPLICIT(vtkUnstructuredGrid)

@@ -14,10 +14,13 @@
 =========================================================================*/
 
 #include <limits>
-#include <complex>
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <vector>
+#include <numeric>
+#include <functional>
+
 #include <adios.h>
 
 #include "ADIOSWriter.h"
@@ -40,12 +43,38 @@ static const int64_t INVALID_INT64 = std::numeric_limits<int64_t>::min();
 static const MPI_Comm INVALID_MPI_COMM = static_cast<MPI_Comm>(NULL);
 
 //----------------------------------------------------------------------------
+template<typename T>
+std::string ToString(const T& x)
+{
+  std::stringstream ss;
+  ss << x;
+  return ss.str();
+}
+template<> std::string ToString(const std::vector<size_t>& x)
+{
+  if(x.size() == 0)
+    {
+    return "";
+    }
+
+  std::stringstream ss;
+  std::vector<size_t>::const_iterator i = x.begin();
+  ss << *i;
+  while(++i != x.end())
+    {
+    ss << ',' << *i;
+    }
+  return ss.str();
+}
+
+//----------------------------------------------------------------------------
 struct ADIOSWriter::ADIOSWriterImpl
 {
   ADIOSWriterImpl(void)
   : IsWriting(false), File(INVALID_INT64), Group(INVALID_INT64),
     GroupSize(0), TotalSize(0)
   {
+    MPI_Comm_rank(ADIOSWriterImpl::Comm, &this->Rank);
   }
 
   void TestDefine(void)
@@ -58,6 +87,8 @@ struct ADIOSWriter::ADIOSWriterImpl
   }
 
   static MPI_Comm Comm;
+  static int NumWriters;
+  int Rank;
   bool IsWriting;
   int64_t File;
   int64_t Group;
@@ -65,6 +96,7 @@ struct ADIOSWriter::ADIOSWriterImpl
   uint64_t TotalSize;
 };
 MPI_Comm ADIOSWriter::ADIOSWriterImpl::Comm = INVALID_MPI_COMM;
+int ADIOSWriter::ADIOSWriterImpl::NumWriters = 1;
 
 //----------------------------------------------------------------------------
 ADIOSWriter::ADIOSWriter(ADIOS::TransportMethod transport,
@@ -78,8 +110,7 @@ ADIOSWriter::ADIOSWriter(ADIOS::TransportMethod transport,
 
   int err;
 
-  err = adios_declare_group(&this->Impl->Group, "VTK", "",
-    adios_flag_yes);
+  err = adios_declare_group(&this->Impl->Group, "VTK", "", adios_flag_yes);
   ADIOSUtilities::TestWriteErrorEq(0, err);
 
   err = adios_select_method(this->Impl->Group,
@@ -95,9 +126,14 @@ bool ADIOSWriter::Initialize(MPI_Comm comm)
     // Already initialized
     return ADIOSWriterImpl::Comm == comm;
     }
-  ADIOSWriterImpl::Comm = comm;
 
   int err;
+  err = MPI_Comm_size(comm, &ADIOSWriterImpl::NumWriters);
+  if(err != MPI_SUCCESS)
+    {
+    return false;
+    }
+  ADIOSWriterImpl::Comm = comm;
 
   err = adios_init_noxml(ADIOSWriterImpl::Comm);
   ADIOSUtilities::TestWriteErrorEq(0, err);
@@ -110,11 +146,8 @@ bool ADIOSWriter::Initialize(MPI_Comm comm)
 ADIOSWriter::~ADIOSWriter(void)
 {
   this->Close();
+  adios_finalize(this->Impl->Rank);
   delete this->Impl;
-
-  int rank = 0;
-  MPI_Comm_rank(ADIOSWriterImpl::Comm, &rank);
-  adios_finalize(rank);
 }
 
 //----------------------------------------------------------------------------
@@ -153,11 +186,15 @@ template<typename TN>
 void ADIOSWriter::DefineScalar(const std::string& path)
 {
   DebugMacro( "Define Scalar: " << path);
+  std::string dimsLocal = ToString(1);
+  std::string dimsGlobal = ToString(ADIOSWriterImpl::NumWriters);
+  std::string dimsOffset = ToString(this->Impl->Rank);
 
   this->Impl->TestDefine();
   int id;
   id = adios_define_var(this->Impl->Group, path.c_str(), "",
-    ADIOSUtilities::TypeNativeToADIOS<TN>::T, NULL, NULL, NULL);
+    ADIOSUtilities::TypeNativeToADIOS<TN>::T, dimsLocal.c_str(),
+    dimsGlobal.c_str(), dimsOffset.c_str());
   ADIOSUtilities::TestWriteErrorNe(-1, id);
   this->Impl->GroupSize += sizeof(TN);
 }
@@ -219,20 +256,15 @@ void ADIOSWriter::DefineArray(const std::string& path,
   this->Impl->TestDefine();
   ADIOS_DATATYPES adiosType = ADIOSUtilities::TypeVTKToADIOS(vtkType);
 
-  std::stringstream ssDims;
-  size_t numBytes = ADIOSUtilities::TypeSize(adiosType);
-  for(size_t i = 0; i < dims.size()-1; ++i)
-    {
-    ssDims << dims[i] << ',';
-    numBytes *= dims[i];
-    }
-  ssDims << dims[dims.size()-1];
-  numBytes *= dims[dims.size()-1];
+  std::string dimsLocal = ToString(dims);
+  size_t numElements = std::accumulate(dims.begin(), dims.end(), 1,
+    std::multiplies<size_t>());
+  size_t numBytes = ADIOSUtilities::TypeSize(adiosType) * numElements;
 
   DebugMacro("Define Array: " << path << " [" << ssDims.str() << "]");
   int id;
   id = adios_common_define_var(this->Impl->Group, path.c_str(), "",
-    adiosType, ssDims.str().c_str(), NULL, NULL, 
+    adiosType, dimsLocal.c_str(), "", "",
     const_cast<char*>(ADIOS::ToString(xfm).c_str()));
   ADIOSUtilities::TestWriteErrorNe(-1, id);
   this->Impl->GroupSize += numBytes;

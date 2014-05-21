@@ -10,6 +10,7 @@ set(vtkADIOSIO_SOURCES
   ADIOSDefs.h                 ADIOSDefs.cxx
   ADIOSUtilities.h            ADIOSUtilities.cxx
 
+  ADIOSScalar.h               ADIOSScalar.cxx
   ADIOSVarInfo.h              ADIOSVarInfo.cxx
   ADIOSReader.h               ADIOSReader.cxx
   ADIOSReaderImpl.h

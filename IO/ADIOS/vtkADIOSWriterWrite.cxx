@@ -38,7 +38,11 @@ void vtkADIOSWriter::Write(const std::string& path, const vtkAbstractArray* v)
     return;
     }
 
-  this->Writer->WriteArray(path, valueTmp->GetVoidPointer(0));
+  // Forget about empty arrays
+  if(valueTmp->GetNumberOfTuples() != 0)
+    {
+    this->Writer->WriteArray(path, valueTmp->GetVoidPointer(0));
+    }
 }
 
 //----------------------------------------------------------------------------

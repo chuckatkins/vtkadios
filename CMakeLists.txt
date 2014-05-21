@@ -19,19 +19,11 @@ include(${VTK_USE_FILE})
 add_subdirectory(IO)
 add_subdirectory(Extra)
 
-#add_executable(ADIOSWriteImage ADIOSWriteImage.cxx)
-#target_link_libraries(ADIOSWriteImage ${VTK_LIBRARIES} vtkIOADIOS)
-#
-#add_executable(ADIOSDumpImage ADIOSDumpImage.cxx)
-#target_link_libraries(ADIOSDumpImage ${VTK_LIBRARIES} vtkIOADIOS)
-#
-#add_executable(ADIOSWritePoly ADIOSWritePoly.cxx)
-#target_link_libraries(ADIOSWritePoly ${VTK_LIBRARIES} vtkIOADIOS)
-#
-#add_executable(ADIOSDumpPoly ADIOSDumpPoly.cxx)
-#target_link_libraries(ADIOSDumpPoly ${VTK_LIBRARIES} vtkIOADIOS)
-
 add_executable(ADIOSExodusII2ADIOS ADIOSExodusII2ADIOS.cxx)
 target_link_libraries(ADIOSExodusII2ADIOS
+  ${VTK_LIBRARIES} vtkIOADIOS ExtraFilters
+)
+add_executable(ADIOSBP2VTK ADIOSBP2VTK.cxx)
+target_link_libraries(ADIOSBP2VTK
   ${VTK_LIBRARIES} vtkIOADIOS ExtraFilters
 )

@@ -18,6 +18,7 @@
 #include <map>
 #include <utility>
 
+#include "ADIOSScalar.h"
 #include "ADIOSReader.h"
 #include "ADIOSReaderImpl.h"
 #include "ADIOSUtilities.h"
@@ -117,7 +118,7 @@ ADIOSReader::~ADIOSReader(void)
 }
 
 //----------------------------------------------------------------------------
-bool ADIOSReader::Initialize(MPI_Comm comm, ADIOS_READ_METHOD method,
+bool ADIOSReader::Initialize(MPI_Comm comm, ADIOS::ReadMethod method,
   const std::string &methodArgs)
 {
   if(ADIOSReader::ADIOSReaderImpl::Comm != INVALID_MPI_COMM)
@@ -125,6 +126,7 @@ bool ADIOSReader::Initialize(MPI_Comm comm, ADIOS_READ_METHOD method,
     return ADIOSReader::ADIOSReaderImpl::Comm == comm;
     }
 
+  ADIOSReader::ADIOSReaderImpl::Comm = comm;
   ADIOSReader::ADIOSReaderImpl::Method = static_cast<ADIOS_READ_METHOD>(method);
 
   int err;
@@ -145,9 +147,8 @@ void ADIOSReader::OpenFile(const std::string &fileName)
   int err;
 
   // Open the file
-  this->Impl->File = adios_read_open(fileName.c_str(),
-    ADIOSReader::ADIOSReaderImpl::Method, ADIOSReader::ADIOSReaderImpl::Comm,
-    ADIOS_LOCKMODE_NONE, 0);
+  this->Impl->File = adios_read_open_file(fileName.c_str(),
+    ADIOSReader::ADIOSReaderImpl::Method, ADIOSReader::ADIOSReaderImpl::Comm);
   ADIOSUtilities::TestReadErrorNe<void*>(NULL, this->Impl->File);
 
   // Poplulate step information
@@ -160,12 +161,27 @@ void ADIOSReader::OpenFile(const std::string &fileName)
       ADIOS_VARINFO *v = adios_inq_var_byid(this->Impl->File, i);
       ADIOSUtilities::TestReadErrorNe<void*>(NULL, v);
 
+      err = adios_inq_var_stat(this->Impl->File, v, 1, 1);
+      ADIOSUtilities::TestReadErrorEq<int>(0, err);
+
+      err = adios_inq_var_blockinfo(this->Impl->File, v);
+      ADIOSUtilities::TestReadErrorEq<int>(0, err);
+
       std::string name(this->Impl->File->var_namelist[i]);
 
       // Insert into the appropriate scalar or array map
       if(v->ndim == 0)
         {
         this->Impl->Scalars.push_back(new ADIOSVarInfo(name, v));
+        /*
+        if(i == 0)
+          {
+          ADIOSScalar s(this->Impl->File, v);
+          const double *v0 = s.GetValues<double>(0);
+          const double ** const v = &v0;
+          int z = 0;
+          }
+        */
         }
       else
         {
@@ -186,8 +202,6 @@ void ADIOSReader::OpenFile(const std::string &fileName)
       new ADIOSAttributeImpl(id, this->Impl->File->attr_namelist[id], size,
       type, data)));
     }
-
-  
 }
 
 //----------------------------------------------------------------------------

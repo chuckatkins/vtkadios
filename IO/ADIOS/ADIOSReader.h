@@ -37,7 +37,7 @@ public:
   // Description:
   // Initialize the underlying ADIOS subsystem
   static bool Initialize(MPI_Comm comm,
-    ADIOS_READ_METHOD method = ADIOS_READ_METHOD_BP,
+    ADIOS::ReadMethod method = ADIOS::ReadMethod_BP,
     const std::string &methodArgs = "");
 
   // Description:

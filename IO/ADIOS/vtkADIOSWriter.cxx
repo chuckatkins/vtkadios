@@ -115,9 +115,9 @@ void vtkADIOSWriter::CloseFile(void)
 
 //----------------------------------------------------------------------------
 template<typename T>
-bool vtkADIOSWriter::DefineAndWrite(void)
+bool vtkADIOSWriter::DefineAndWrite(vtkDataObject *input)
 {
-  const T *data = T::SafeDownCast(this->Input);
+  const T *data = T::SafeDownCast(input);
   if(!data)
     {
     return false;
@@ -133,10 +133,10 @@ bool vtkADIOSWriter::DefineAndWrite(void)
         {
         this->Writer->DefineAttribute<int>("/NumberOfPieces",
           this->NumberOfPieces);
-        this->Writer->DefineScalar<double>("/TimeStamp");
         }
 
       // 2: Before any data can be writen, it's structure must be declared
+      this->Writer->DefineScalar<double>("/TimeStamp");
       this->Define("", data);
       }
 
@@ -167,19 +167,20 @@ bool vtkADIOSWriter::DefineAndWrite(void)
 //----------------------------------------------------------------------------
 bool vtkADIOSWriter::WriteInternal(void)
 {
-  if(!this->Input)
+  vtkDataObject *input = this->GetInputDataObject(0, 0);
+  if(!input)
     {
     return false;
     }
 
-  switch(this->Input->GetDataObjectType())
+  switch(input->GetDataObjectType())
     {
     case VTK_IMAGE_DATA:
-      return this->DefineAndWrite<vtkImageData>();
+      return this->DefineAndWrite<vtkImageData>(input);
     case VTK_POLY_DATA:
-      return this->DefineAndWrite<vtkPolyData>();
+      return this->DefineAndWrite<vtkPolyData>(input);
     case VTK_UNSTRUCTURED_GRID:
-      return this->DefineAndWrite<vtkUnstructuredGrid>();
+      return this->DefineAndWrite<vtkUnstructuredGrid>(input);
     default:
       vtkErrorMacro("Input vtkDataObject type not supported by ADIOS writer");
       return false;
@@ -272,7 +273,6 @@ bool vtkADIOSWriter::RequestData(vtkInformation *req,
   vtkInformationVector **input, vtkInformationVector *vtkNotUsed(output))
 {
   vtkInformation* inInfo = input[0]->GetInformationObject(0);
-  this->Input = inInfo->Get(vtkDataObject::DATA_OBJECT());
 
   // Start looping if we're at the beginning
   if(this->CurrentTimeStep == this->TimeSteps.begin() &&
@@ -290,7 +290,7 @@ bool vtkADIOSWriter::RequestData(vtkInformation *req,
   if(++this->CurrentTimeStep == this->TimeSteps.end() &&
      this->WriteAllTimeSteps)
     {
-    req->Set(vtkStreamingDemandDrivenPipeline::CONTINUE_EXECUTING(), 0);
+    req->Remove(vtkStreamingDemandDrivenPipeline::CONTINUE_EXECUTING());
     }
 
   return true;

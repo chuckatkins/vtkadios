@@ -31,5 +31,14 @@ enum Transform
 };
 const std::string& ToString(Transform);
 
+enum ReadMethod
+{
+  ReadMethod_BP           = 0,
+  ReadMethod_BP_AGGREGATE = 1,
+  ReadMethod_DataSpaces   = 3,
+  ReadMethod_DIMES        = 4,
+  ReadMethod_FlexPath     = 5
+};
+
 } // end namespace
 #endif //__ADIOSDefs_h

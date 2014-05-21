@@ -83,10 +83,6 @@ public:
   void SetController(vtkMPIController*);
 
   // Description:
-  // Manually set the input data when not running  a pipeline
-  void SetInput(vtkDataObject* input) { this->Input = input; }
-
-  // Description:
   // The main interface which triggers the writer to start
   virtual int ProcessRequest(vtkInformation*, vtkInformationVector**,
     vtkInformationVector*);
@@ -159,13 +155,12 @@ protected:
   std::vector<double>::iterator CurrentTimeStep;
   int RequestExtent[6];
   int WholeExtent[6];
-  vtkSmartPointer<vtkDataObject> Input;
 
 private:
   bool WriteInternal(void);
 
   template<typename T>
-  bool DefineAndWrite(void);
+  bool DefineAndWrite(vtkDataObject *input);
 
   vtkADIOSWriter(const vtkADIOSWriter&);  // Not implemented.
   void operator=(const vtkADIOSWriter&);  // Not implemented.
