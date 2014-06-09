@@ -16,14 +16,20 @@ endif()
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
-add_subdirectory(IO)
 add_subdirectory(Extra)
 
 add_executable(ADIOSExodusII2ADIOS ADIOSExodusII2ADIOS.cxx)
 target_link_libraries(ADIOSExodusII2ADIOS
-  ${VTK_LIBRARIES} vtkIOADIOS ExtraFilters
+  ${VTK_LIBRARIES} ExtraFilters
 )
+
 add_executable(ADIOSBP2VTK ADIOSBP2VTK.cxx)
 target_link_libraries(ADIOSBP2VTK
-  ${VTK_LIBRARIES} vtkIOADIOS ExtraFilters
+  ${VTK_LIBRARIES} ExtraFilters
 )
+
+add_executable(ADIOSGeneratedUG2BP ADIOSGeneratedUG2BP)
+target_link_libraries(ADIOSGeneratedUG2BP
+  ${VTK_LIBRARIES} ExtraFilters
+)
+

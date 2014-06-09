@@ -7,8 +7,8 @@
 #include <vtkMPIController.h>
 #include <vtkMultiProcessController.h>
 
-#include <vtkPExodusIIReader.h>
-#include <vtkADIOSWriter.h>
+#include <vtkADIOSReader.h>
+#include <vtkPExodusIIWriter.h>
 #include "Extra/vtkCompositeDataToUnstructuredGridFilter.h"
 
 int main(int argc, char **argv)
@@ -26,25 +26,16 @@ int main(int argc, char **argv)
   std::string inputFile(argv[1]),
               outputFile(argv[2]);
 
-  vtkNew<vtkPExodusIIReader> reader;
+  vtkNew<vtkADIOSReader> reader;
   vtkNew<vtkCompositeDataToUnstructuredGridFilter> filter;
-  vtkNew<vtkADIOSWriter> writer;
-
-  filter->SetInputConnection(reader->GetOutputPort());
-  writer->SetInputConnection(filter->GetOutputPort());
+  vtkNew<vtkPExodusIIWriter> writer;
 
   reader->SetFileName(argv[1]);
-
-  // Need to update info first so we know what arrays are available to turn on
-  reader->UpdateInformation();
-  for(int i = 0; i < reader->GetNumberOfElementResultArrays(); ++i)
-    {
-    reader->SetElementResultArrayStatus(reader->GetElementResultArrayName(i),
-      1);
-    }
-
+  filter->SetInputConnection(reader->GetOutputPort());
   writer->SetFileName(argv[2]);
-  //writer->SetTransformToZLib();
+  writer->SetWriteAllTimeSteps(1);
+  writer->SetInputConnection(filter->GetOutputPort());
+
   writer->Update();
 
   return 0;
